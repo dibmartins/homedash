@@ -25,6 +25,8 @@ const SHEET_ID = '';
 //  sheetReminders: nome usado na coluna "Pessoa" da aba Lembretes (linhas com "Todos" aparecem para todos).
 //  shopping / menu: mostrar compras e cardápio da planilha.
 //  photos: { album: 'link do álbum compartilhado do Google Fotos' } ou { folder: 'ID da pasta no Drive' }.
+//          Vídeos do álbum tocam sozinhos, sem som, no fundo da tela.
+//  spotify: mostrar o card "Tocando agora" (veja a seção Spotify no README).
 // Troque as chaves e os nomes pelos da sua casa na SUA cópia do script (não no repositório).
 const PROFILES = {
   familia: {
@@ -35,6 +37,7 @@ const PROFILES = {
     shopping: true,
     menu: true,
     photos: { album: '' },
+    spotify: true,
   },
   pessoa1: {
     name: 'Pessoa 1',
@@ -44,6 +47,7 @@ const PROFILES = {
     shopping: true,
     menu: true,
     photos: { album: '' },
+    spotify: true,
   },
   pessoa2: {
     name: 'Pessoa 2',
@@ -70,7 +74,14 @@ const CACHE_SECONDS = 120;
 function doGet(e) {
   const p = (e && e.parameter) || {};
   if (TOKEN === 'troque-este-segredo' || TOKEN.length < 24) return json_({ error: 'defina um TOKEN longo no script' });
+
+  // retorno da autorização do Spotify (vem do Spotify, sem o token do painel; protegido pelo "state")
+  if (p.code && p.state) return spotifyCallback_(p);
+
   if (p.token !== TOKEN) return json_({ error: 'token inválido' });
+
+  if (p.spotify === 'login') return spotifyLoginPage_();
+  if (p.spotify === 'now') return json_({ spotify: spotifyNowPlaying_() });
 
   if (p.foto) {
     // só entrega fotos das pastas configuradas, nunca outros arquivos do Drive
@@ -102,6 +113,7 @@ function doGet(e) {
     shopping: profile.shopping ? safe('compras', () => getShopping_(sheet), []) : null,
     menu: profile.menu ? safe('cardápio', () => getMenu_(sheet), []) : null,
     photos: safe('fotos', () => getPhotos_(profile.photos || {}), []),
+    spotify: !!(profile.spotify && spotifyConfigured_()),
     warnings: warnings,
     updated: new Date().toISOString(),
   });
@@ -208,13 +220,16 @@ function getPhotos_(cfg) {
     // se o Google mudar a página, use uma pasta do Drive.
     const html = UrlFetchApp.fetch(cfg.album, { followRedirects: true, muteHttpExceptions: true }).getContentText();
     const re = /\["(https:\/\/lh3\.googleusercontent\.com\/pw\/[^"]+)",\s*(\d+),\s*(\d+)/g;
-    const seen = {}, out = [];
+    const seen = {}, urls = [];
     let m;
     while ((m = re.exec(html)) !== null) {
       if (seen[m[1]]) continue;
       seen[m[1]] = true;
-      out.push({ url: m[1] + '=w1920-h1080' }); // o painel troca pelo tamanho real da tela
+      urls.push(m[1]);
     }
+    const videos = videoSet_(urls);
+    // o painel troca o sufixo pelo tamanho real da tela; vídeos usam "=dv" (o arquivo do vídeo)
+    const out = urls.map(u => videos[u] ? { url: u + '=w1920-h1080', video: u + '=dv' } : { url: u + '=w1920-h1080' });
     try { cache.put(ck, JSON.stringify(out), 6 * 3600); } catch (err) {}
     return out;
   }
@@ -256,6 +271,132 @@ function drivePhotoDataUrl_(id, w) {
   const dataUrl = 'data:' + blob.getContentType() + ';base64,' + Utilities.base64Encode(blob.getBytes());
   try { cache.put('foto-' + width + '-' + id, dataUrl, 6 * 3600); } catch (err) { /* maior que 100 KB */ }
   return dataUrl;
+}
+
+// Vídeos do álbum aparecem na página como uma imagem (o primeiro quadro). Para saber
+// quais são vídeos, pede o sufixo "=dv" (download do vídeo): para vídeos o Google
+// responde com video/*; para fotos, não. Só o primeiro byte é baixado.
+function videoSet_(urls) {
+  const videos = {};
+  for (let i = 0; i < urls.length; i += 50) {
+    const chunk = urls.slice(i, i + 50);
+    let responses;
+    try {
+      responses = UrlFetchApp.fetchAll(chunk.map(u => ({
+        url: u + '=dv', headers: { Range: 'bytes=0-0' }, followRedirects: true, muteHttpExceptions: true,
+      })));
+    } catch (err) {
+      return videos; // se a verificação falhar, trata tudo como foto
+    }
+    responses.forEach((r, j) => {
+      const type = String(r.getHeaders()['Content-Type'] || r.getHeaders()['content-type'] || '');
+      const isVideo = r.getResponseCode() < 400 && /^video\//i.test(type);
+      if (isVideo) videos[chunk[j]] = true;
+    });
+  }
+  return videos;
+}
+
+// ---------------- Spotify ("Tocando agora") ----------------
+// Em Configurações do projeto > Propriedades do script, crie SPOTIFY_CLIENT_ID e
+// SPOTIFY_CLIENT_SECRET. O SPOTIFY_REFRESH_TOKEN é gravado sozinho ao autorizar.
+const SPOTIFY_SCOPES = 'user-read-currently-playing user-read-playback-state';
+
+function spotifyProps_() { return PropertiesService.getScriptProperties(); }
+function spotifyConfigured_() {
+  const pr = spotifyProps_();
+  return !!(pr.getProperty('SPOTIFY_CLIENT_ID') && pr.getProperty('SPOTIFY_CLIENT_SECRET') && pr.getProperty('SPOTIFY_REFRESH_TOKEN'));
+}
+function spotifyRedirectUri_() { return ScriptApp.getService().getUrl(); }
+
+function spotifyLoginPage_() {
+  const pr = spotifyProps_();
+  const clientId = pr.getProperty('SPOTIFY_CLIENT_ID');
+  if (!clientId || !pr.getProperty('SPOTIFY_CLIENT_SECRET')) {
+    return HtmlService.createHtmlOutput('<p>Crie as propriedades SPOTIFY_CLIENT_ID e SPOTIFY_CLIENT_SECRET no script antes de autorizar.</p>');
+  }
+  const state = Utilities.getUuid();
+  CacheService.getScriptCache().put('spotify-state-' + state, '1', 600);
+  const url = 'https://accounts.spotify.com/authorize?response_type=code' +
+    '&client_id=' + encodeURIComponent(clientId) +
+    '&scope=' + encodeURIComponent(SPOTIFY_SCOPES) +
+    '&redirect_uri=' + encodeURIComponent(spotifyRedirectUri_()) +
+    '&state=' + encodeURIComponent(state);
+  return HtmlService.createHtmlOutput(
+    '<div style="font-family:sans-serif;max-width:640px">' +
+    '<h2>Conectar o Spotify ao painel</h2>' +
+    '<p>No painel de desenvolvedores do Spotify, a Redirect URI do app precisa ser exatamente:</p>' +
+    '<p><code style="word-break:break-all">' + spotifyRedirectUri_() + '</code></p>' +
+    '<p><a href="' + url + '" target="_top" style="font-size:18px">Autorizar o Spotify</a> (o link vale por 10 minutos)</p>' +
+    '</div>');
+}
+
+function spotifyCallback_(p) {
+  const cache = CacheService.getScriptCache();
+  if (!cache.get('spotify-state-' + p.state)) return HtmlService.createHtmlOutput('<p>Link expirado. Abra a página de autorização de novo.</p>');
+  cache.remove('spotify-state-' + p.state);
+  const res = spotifyTokenRequest_({ grant_type: 'authorization_code', code: p.code, redirect_uri: spotifyRedirectUri_() });
+  if (!res.refresh_token) return HtmlService.createHtmlOutput('<p>O Spotify não autorizou: ' + (res.error_description || res.error || 'erro desconhecido') + '</p>');
+  spotifyProps_().setProperty('SPOTIFY_REFRESH_TOKEN', res.refresh_token);
+  cache.put('spotify-access', res.access_token, Math.max(60, (res.expires_in || 3600) - 300));
+  return HtmlService.createHtmlOutput('<p style="font-family:sans-serif;font-size:18px">Spotify conectado. Pode fechar esta página.</p>');
+}
+
+function spotifyTokenRequest_(payload) {
+  const pr = spotifyProps_();
+  const basic = Utilities.base64Encode(pr.getProperty('SPOTIFY_CLIENT_ID') + ':' + pr.getProperty('SPOTIFY_CLIENT_SECRET'));
+  const r = UrlFetchApp.fetch('https://accounts.spotify.com/api/token', {
+    method: 'post', payload: payload, headers: { Authorization: 'Basic ' + basic }, muteHttpExceptions: true,
+  });
+  try { return JSON.parse(r.getContentText()); } catch (err) { return { error: 'resposta inválida (' + r.getResponseCode() + ')' }; }
+}
+
+function spotifyAccessToken_() {
+  const cache = CacheService.getScriptCache();
+  const hit = cache.get('spotify-access');
+  if (hit) return hit;
+  const refresh = spotifyProps_().getProperty('SPOTIFY_REFRESH_TOKEN');
+  if (!refresh) return null;
+  const res = spotifyTokenRequest_({ grant_type: 'refresh_token', refresh_token: refresh });
+  if (!res.access_token) return null;
+  if (res.refresh_token) spotifyProps_().setProperty('SPOTIFY_REFRESH_TOKEN', res.refresh_token);
+  cache.put('spotify-access', res.access_token, Math.max(60, (res.expires_in || 3600) - 300));
+  return res.access_token;
+}
+
+// O que está tocando agora (ou null). Guardado 10 s no cache para as TVs dividirem a consulta.
+function spotifyNowPlaying_() {
+  if (!spotifyConfigured_()) return null;
+  const cache = CacheService.getScriptCache();
+  const hit = cache.get('spotify-now');
+  if (hit) return JSON.parse(hit);
+  const token = spotifyAccessToken_();
+  if (!token) return null;
+  const r = UrlFetchApp.fetch('https://api.spotify.com/v1/me/player/currently-playing?additional_types=episode', {
+    headers: { Authorization: 'Bearer ' + token }, muteHttpExceptions: true,
+  });
+  let now = null;
+  if (r.getResponseCode() === 200) {
+    const d = JSON.parse(r.getContentText());
+    const it = d.item;
+    if (it) {
+      const images = (it.album && it.album.images) || (it.show && it.show.images) || it.images || [];
+      now = {
+        playing: !!d.is_playing,
+        title: it.name,
+        artist: it.artists ? it.artists.map(a => a.name).join(', ') : (it.show ? it.show.name : ''),
+        album: it.album ? it.album.name : '',
+        image: images.length ? images[0].url : null,
+        progressMs: d.progress_ms || 0,
+        durationMs: it.duration_ms || 0,
+        fetchedAt: Date.now(),
+      };
+    }
+  } else if (r.getResponseCode() === 401) {
+    cache.remove('spotify-access');
+  }
+  cache.put('spotify-now', JSON.stringify(now), 10);
+  return now;
 }
 
 // ---------------- utilitários ----------------

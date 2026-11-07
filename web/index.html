@@ -47,8 +47,8 @@
 
   /* foto de fundo em tela cheia */
   #bg { position: fixed; inset: 0; z-index: -2; background: var(--bg); }
-  #bg img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; opacity: 0; transition: opacity 2s ease; }
-  #bg img.show { opacity: 1; }
+  #bg img, #bg video { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; opacity: 0; transition: opacity 2s ease; }
+  #bg img.show, #bg video.show { opacity: 1; }
   /* escurece em cima (relógio) e embaixo, e um pouco no geral, para o texto continuar legível */
   #shade { position: fixed; inset: 0; z-index: -1; pointer-events: none;
     background: linear-gradient(to bottom, rgba(0,0,0,0.55) 0%, rgba(0,0,0,0.15) 30%, rgba(0,0,0,0.15) 65%, rgba(0,0,0,0.5) 100%); }
@@ -65,6 +65,17 @@
   /* Chromecast antigo: sem desfoque, que pesa no processador; compensa com fundo mais opaco */
   .lite .card { -webkit-backdrop-filter: none; backdrop-filter: none; background: rgba(14, 18, 25, 0.74); }
   .spacer { flex: 1 1 0; }
+
+  /* Spotify: tocando agora */
+  .np { display: flex; gap: 1.2vw; align-items: center; }
+  #np-art { width: 9vw; height: 9vw; border-radius: 0.6vw; object-fit: cover; flex: none; box-shadow: 0 0.4vw 1.2vw rgba(0,0,0,0.4); background: rgba(255,255,255,0.06); }
+  .np-info { flex: 1; min-width: 0; }
+  .np-info h2 { margin-bottom: 0.6vh; color: #1ed760; }
+  .np-title { font-size: 1.8vw; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .np-artist { font-size: 1.35vw; color: #c9d1dd; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-top: 0.3vh; }
+  .np-bar { height: 0.45vh; background: rgba(255,255,255,0.18); border-radius: 1vh; margin-top: 1.2vh; overflow: hidden; }
+  #np-progress { height: 100%; width: 0; background: #1ed760; transition: width 1s linear; }
+  .paused #np-progress { background: var(--muted); }
   .more { color: var(--muted); font-style: italic; font-size: 1.25vw; padding-top: 0.4vh; }
   .col { display: flex; flex-direction: column; gap: 2vh; min-height: 0; }
   .col > .card { flex: 1 1 0; }
@@ -125,6 +136,17 @@
 
   <div class="col" id="middle">
     <div class="spacer"></div>
+    <div class="card hidden" id="spotify-card" style="flex: none">
+      <div class="np">
+        <img id="np-art" alt="">
+        <div class="np-info">
+          <h2 id="np-label">Tocando agora</h2>
+          <div class="np-title" id="np-title"></div>
+          <div class="np-artist" id="np-artist"></div>
+          <div class="np-bar"><div id="np-progress"></div></div>
+        </div>
+      </div>
+    </div>
     <div class="card" id="menu-card" style="flex: none">
       <h2>Cardápio</h2>
       <div id="menu"></div>
@@ -270,22 +292,64 @@
 
   // ---------- fotos (fundo da tela inteira) ----------
   // Pede a foto no tamanho real da tela (TVs 4K chegam a 3840 px) para não ficar serrilhada.
+  var IS_CAST = /CrKey/.test(navigator.userAgent);
   var SCREEN_W = Math.min(3840, Math.round(screen.width * (window.devicePixelRatio || 1)));
   var SCREEN_H = Math.min(2160, Math.round(screen.height * (window.devicePixelRatio || 1)));
   var photos = [], photosKey = "", photoIdx = -1, photoTimer = null;
   function setPhotos(list) {
     list = list || [];
     var key = JSON.stringify(list);
-    if (!list.length) { photos = []; photosKey = ""; clearInterval(photoTimer); photoTimer = null; $("bg").innerHTML = ""; return; }
+    if (!list.length) { photos = []; photosKey = ""; clearTimeout(photoTimer); photoTimer = null; $("bg").innerHTML = ""; return; }
     if (key === photosKey && photoTimer) return; // mesma lista: segue a sequência atual
     photosKey = key;
     photos = list.slice();
     // embaralha para não repetir sempre a mesma sequência
     for (var i = photos.length - 1; i > 0; i--) { var j = Math.floor(Math.random() * (i + 1)); var t = photos[i]; photos[i] = photos[j]; photos[j] = t; }
     photoIdx = -1;
+    clearTimeout(photoTimer);
     nextPhoto();
-    clearInterval(photoTimer);
-    photoTimer = setInterval(nextPhoto, CONFIG.photoEveryMs);
+  }
+  function scheduleNext(ms) {
+    clearTimeout(photoTimer);
+    photoTimer = setTimeout(nextPhoto, ms);
+  }
+  // troca o item de fundo com transição suave e remove o anterior
+  function showLayer(el) {
+    var box = $("bg");
+    box.appendChild(el);
+    requestAnimationFrame(function () { requestAnimationFrame(function () { el.classList.add("show"); }); });
+    var old = box.children;
+    setTimeout(function () {
+      while (box.children.length > 1 && box.firstChild !== el) {
+        var f = box.firstChild;
+        if (f.tagName === "VIDEO") { f.pause(); f.removeAttribute("src"); f.load(); }
+        f.remove();
+      }
+    }, 2200);
+  }
+  // Vídeo do álbum: toca sem som e passa para o próximo item quando acaba (no máximo 2 minutos).
+  // No Chromecast antigo, que não aguenta bem, mostra só o primeiro quadro como foto.
+  function playVideo(p) {
+    var v = document.createElement("video");
+    v.muted = true; v.autoplay = true; v.playsInline = true; v.preload = "auto";
+    v.setAttribute("muted", ""); v.setAttribute("playsinline", "");
+    var done = false;
+    function next() { if (!done) { done = true; scheduleNext(0); } }
+    v.addEventListener("canplay", function () { if (!v.parentNode) { showLayer(v); scheduleNext(120 * 1000); } v.play().catch(function () {}); }, { once: true });
+    v.addEventListener("ended", next);
+    v.addEventListener("error", function () { if (!v.parentNode) showStill(p); else next(); });
+    v.src = p.video;
+    scheduleNext(20 * 1000); // se não carregar em 20 s, segue a fila
+  }
+  function showStill(p) {
+    photoUrl(p).then(function (src) {
+      if (!src) return;
+      var img = new Image();
+      img.decoding = "async";
+      img.onload = function () { showLayer(img); };
+      img.src = src;
+    }).catch(function () {});
+    scheduleNext(CONFIG.photoEveryMs);
   }
   function photoUrl(p) {
     if (p.url) {
@@ -301,18 +365,8 @@
   function nextPhoto() {
     if (!photos.length) return;
     photoIdx = (photoIdx + 1) % photos.length;
-    photoUrl(photos[photoIdx]).then(function (src) {
-      if (!src) return;
-      var box = $("bg"), img = new Image();
-      img.decoding = "async";
-      img.onload = function () {
-        box.appendChild(img);
-        requestAnimationFrame(function () { requestAnimationFrame(function () { img.classList.add("show"); }); });
-        var old = box.querySelectorAll("img");
-        setTimeout(function () { for (var i = 0; i < old.length - 1; i++) old[i].remove(); }, 2200);
-      };
-      img.src = src;
-    }).catch(function () {});
+    var p = photos[photoIdx];
+    if (p.video && !IS_CAST) playVideo(p); else showStill(p);
   }
 
   // ---------- encaixe: nada é cortado no fim dos cards ----------
@@ -336,6 +390,45 @@
     fit($("agenda"), $("events"), ".event", "eventos");
     fit($("reminders-card"), $("reminders").querySelector("ul"), "li", "itens");
     fit($("shopping-card"), $("shopping").querySelector("ul"), "li", "itens");
+  }
+
+  // ---------- Spotify: tocando agora ----------
+  // Consulta a cada 15 s enquanto toca e a cada 60 s parado; a barra anda sozinha entre as consultas.
+  var np = null, npTimer = null, npEnabled = false;
+  function loadNowPlaying() {
+    if (!npEnabled || !CONFIG.api) return;
+    fetch(apiUrl({ spotify: "now" })).then(function (r) { return r.json(); }).then(function (j) {
+      np = j.spotify ? Object.assign({ at: Date.now() }, j.spotify) : null;
+      renderNowPlaying();
+      clearTimeout(npTimer);
+      npTimer = setTimeout(loadNowPlaying, np && np.playing ? 15000 : 60000);
+    }).catch(function () { clearTimeout(npTimer); npTimer = setTimeout(loadNowPlaying, 60000); });
+  }
+  function renderNowPlaying() {
+    var card = $("spotify-card");
+    // só aparece tocando, ou pausado há pouco tempo
+    if (!np || (!np.playing && Date.now() - np.at > 10 * 60 * 1000)) { card.classList.add("hidden"); return; }
+    card.classList.remove("hidden");
+    card.classList.toggle("paused", !np.playing);
+    $("np-label").textContent = np.playing ? "Tocando agora" : "Pausado";
+    $("np-title").textContent = np.title || "";
+    $("np-artist").textContent = np.artist || "";
+    if (np.image && $("np-art").getAttribute("src") !== np.image) $("np-art").src = np.image;
+    tickNowPlaying();
+  }
+  function tickNowPlaying() {
+    if (!np || !np.durationMs) return;
+    var pos = np.progressMs + (np.playing ? Date.now() - np.at : 0);
+    $("np-progress").style.width = Math.min(100, pos / np.durationMs * 100) + "%";
+    // música acabou antes da próxima consulta: pergunta de novo
+    if (np.playing && pos > np.durationMs + 2000) { np.playing = false; clearTimeout(npTimer); npTimer = setTimeout(loadNowPlaying, 1000); }
+  }
+  setInterval(tickNowPlaying, 1000);
+  function setSpotify(enabled) {
+    var was = npEnabled;
+    npEnabled = !!enabled;
+    if (npEnabled && !was) loadNowPlaying();
+    if (!npEnabled) { clearTimeout(npTimer); np = null; renderNowPlaying(); }
   }
 
   // ---------- tempo (Open-Meteo, sem chave) ----------
@@ -397,6 +490,8 @@
     $("shopping-card").classList.toggle("hidden", !data.shopping);
     renderMenu(data.menu);
     setPhotos(data.photos || []);
+    setSpotify(data.spotify);
+    if (data.spotifyDemo) { np = Object.assign({ at: Date.now() }, data.spotifyDemo); renderNowPlaying(); }
     fitAll();
     lastOk = Date.now();
     $("status").textContent = (data.demo ? "dados de exemplo · " : "") + "atualizado às " + hm(new Date()) +
@@ -447,6 +542,7 @@
         { weekday: 6, almoco: "Macarronada", jantar: "Lanche" }
       ],
       photos: [photo("familia1"), photo("praia2"), photo("parque3")],
+      spotifyDemo: { playing: true, title: "Nome da música", artist: "Artista", image: null, progressMs: 95000, durationMs: 210000 },
       demo: true
     };
   }

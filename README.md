@@ -106,6 +106,21 @@ Para manter sempre ligado, agende esse comando a cada 15 minutos (cron) em um ap
 
 Se alguém transmitir YouTube ou outra coisa, o painel sai e volta no próximo envio.
 
+## 6. Spotify: "Tocando agora" (opcional)
+
+Mostra a capa, a música e o artista do que está tocando na sua conta do Spotify, em qualquer aparelho. Desde fevereiro de 2026, o Spotify exige que o dono do app de desenvolvedor tenha **Premium**.
+
+1. Em [developer.spotify.com/dashboard](https://developer.spotify.com/dashboard), clique em **Create app**. Escolha qualquer nome, marque **Web API** e, em **Redirect URI**, cole exatamente o endereço `/exec` do seu script.
+2. Abra o app criado, vá em **Settings** e copie o **Client ID** e o **Client secret**.
+3. No Apps Script, em **Configurações do projeto > Propriedades do script**, crie `SPOTIFY_CLIENT_ID` e `SPOTIFY_CLIENT_SECRET` com esses valores. Não coloque esses valores no código.
+4. Publique uma nova versão do script (Implantar > Gerenciar implantações > lápis > Nova versão).
+5. No navegador, abra `URL_DO_EXEC?token=SEU_TOKEN&spotify=login` e clique em **Autorizar o Spotify**. Ao final, aparece "Spotify conectado".
+6. O card aparece nos perfis com `spotify: true`. Ele só é exibido enquanto algo toca, ou por 10 minutos depois de pausar.
+
+## Fotos e vídeos do álbum
+
+Os vídeos do álbum tocam sozinhos, sem som, no fundo, e a próxima foto entra quando o vídeo acaba (no máximo 2 minutos por vídeo). No Chromecast sem Google TV, que é mais fraco, o vídeo aparece como foto (o primeiro quadro).
+
 ## Segurança
 
 - **A página do painel não guarda nenhum segredo.** O token vai só no endereço que você configura em cada TV. Não coloque o token no repositório.
