@@ -2,6 +2,9 @@
 <resources>
     <string name="app_name">Painel da Família</string>
     <string name="settings_title">Configurar o painel</string>
+    <string name="full_url_label">Endereço completo do painel (cole aqui e o app preenche o resto)</string>
+    <string name="full_url_invalid">Esse endereço não tem os dados do painel (api e token)</string>
+    <string name="full_url_ok">Dados preenchidos. Confira e clique em Salvar.</string>
     <string name="profile_label">De quem é este painel?</string>
     <string name="page_url_label">Endereço da página do painel</string>
     <string name="api_url_label">Endereço do script do Google (termina em /exec)</string>
@@ -12,7 +15,7 @@
     <string name="save">Salvar</string>
     <string name="saved">Configuração salva</string>
     <string name="reloading">Atualizando o painel…</string>
-    <string name="hint">Para voltar aqui depois, segure o botão OK do controle. Dica: o app Google TV no celular tem um teclado que aceita colar textos.</string>
+    <string name="hint">Jeito mais fácil: no celular, copie o endereço do painel que você usa no navegador, abra o app Google TV, toque no teclado do controle e cole no primeiro campo. Para voltar aqui depois, segure o botão OK do controle.</string>
     <string name="overlay_hint">Não consegui abrir a permissão de sobreposição. Veja o README para ativá-la pelo adb.</string>
     <string name="version">Versão %1$s</string>
 </resources>

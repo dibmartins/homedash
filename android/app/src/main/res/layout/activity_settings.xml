@@ -29,6 +29,9 @@
             android:textColor="@color/muted"
             android:textSize="16sp" />
 
+        <TextView style="@style/Label" android:text="@string/full_url_label" />
+        <EditText android:id="@+id/full_url" style="@style/Field" android:inputType="textUri" android:imeOptions="actionDone" />
+
         <TextView style="@style/Label" android:text="@string/profile_label" />
 
         <RadioGroup
