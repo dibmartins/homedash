@@ -115,6 +115,19 @@
 
   .hidden { display: none !important; }
   #status { position: fixed; right: 1vw; bottom: 0.6vh; font-size: 0.85vw; color: rgba(255, 255, 255, 0.45); }
+
+  /* barra de notícias no rodapé */
+  #news { position: fixed; left: 0; right: 0; bottom: 0; height: 6vh; display: flex; align-items: stretch;
+    background: rgba(8, 10, 14, 0.78); border-top: 1px solid rgba(255, 255, 255, 0.08); z-index: 2; }
+  #news .tag { flex: none; display: flex; align-items: center; padding: 0 1.4vw 0 2.6vw; background: #d93b3b; color: #fff;
+    font-weight: 700; font-size: 1.1vw; letter-spacing: 0.12em; text-transform: uppercase; text-shadow: none; }
+  #news .lane { position: relative; flex: 1; overflow: hidden; }
+  #news-track { position: absolute; top: 0; bottom: 0; left: 0; display: flex; align-items: center; white-space: nowrap; will-change: transform; }
+  #news-track span { font-size: 1.45vw; }
+  #news-track .src { color: var(--accent); font-weight: 700; font-size: 1.05vw; text-transform: uppercase; letter-spacing: 0.08em; margin-right: 0.7vw; }
+  #news-track .sep { color: rgba(255, 255, 255, 0.35); margin: 0 1.6vw; }
+  body.has-news { padding-bottom: calc(6vh + 2vh); }
+  body.has-news #status { bottom: calc(6vh + 0.4vh); }
 </style>
 </head>
 <body>
@@ -165,6 +178,7 @@
   </div>
 
   <div id="status"></div>
+  <div id="news" class="hidden"><div class="tag">Notícias</div><div class="lane"><div id="news-track"></div></div></div>
 
 <script>
 (function () {
@@ -431,6 +445,38 @@
     if (!npEnabled) { clearTimeout(npTimer); np = null; renderNowPlaying(); }
   }
 
+  // ---------- barra de notícias ----------
+  // A cada volta completa, embaralha as manchetes de novo (as fontes ficam misturadas).
+  var news = [], newsRunning = false;
+  function shuffle(a) {
+    a = a.slice();
+    for (var i = a.length - 1; i > 0; i--) { var j = Math.floor(Math.random() * (i + 1)); var t = a[i]; a[i] = a[j]; a[j] = t; }
+    return a;
+  }
+  function setNews(list) {
+    news = (list || []).filter(function (n) { return n && n.title; });
+    var on = news.length > 0;
+    $("news").classList.toggle("hidden", !on);
+    document.body.classList.toggle("has-news", on);
+    if (on && !newsRunning) runNews();
+  }
+  function runNews() {
+    var track = $("news-track");
+    if (!news.length) { newsRunning = false; return; }
+    newsRunning = true;
+    track.innerHTML = shuffle(news).slice(0, 30).map(function (n) {
+      return (n.source ? '<span class="src">' + esc(n.source) + "</span>" : "") + "<span>" + esc(n.title) + '</span><span class="sep">•</span>';
+    }).join("");
+    var lane = track.parentNode.clientWidth, w = track.scrollWidth;
+    var speed = window.innerWidth / 14; // pixels por segundo
+    track.style.transition = "none";
+    track.style.transform = "translateX(" + lane + "px)";
+    void track.offsetWidth; // aplica a posição inicial antes de animar
+    track.style.transition = "transform " + ((lane + w) / speed).toFixed(1) + "s linear";
+    track.style.transform = "translateX(" + (-w) + "px)";
+  }
+  $("news-track").addEventListener("transitionend", runNews);
+
   // ---------- tempo (Open-Meteo, sem chave) ----------
   function wmo(code) {
     if (code === 0) return ["☀️", "céu limpo"];
@@ -491,6 +537,7 @@
     renderMenu(data.menu);
     setPhotos(data.photos || []);
     setSpotify(data.spotify);
+    setNews(data.news);
     if (data.spotifyDemo) { np = Object.assign({ at: Date.now() }, data.spotifyDemo); renderNowPlaying(); }
     fitAll();
     lastOk = Date.now();
@@ -542,6 +589,14 @@
         { weekday: 6, almoco: "Macarronada", jantar: "Lanche" }
       ],
       photos: [photo("familia1"), photo("praia2"), photo("parque3")],
+      news: [
+        { source: "Esportes", title: "Time vence fora de casa e sobe na tabela" },
+        { source: "Esportes", title: "Técnico confirma escalação para o clássico de domingo" },
+        { source: "Economia", title: "Bolsa fecha em alta puxada por bancos" },
+        { source: "Economia", title: "Dólar recua e termina o dia abaixo de R$ 5" },
+        { source: "Esportes", title: "Seleção divulga convocados para as eliminatórias" },
+        { source: "Economia", title: "Inflação do mês vem abaixo do esperado" }
+      ],
       spotifyDemo: { playing: true, title: "Nome da música", artist: "Artista", image: null, progressMs: 95000, durationMs: 210000 },
       demo: true
     };

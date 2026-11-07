@@ -117,6 +117,10 @@ Mostra a capa, a música e o artista do que está tocando na sua conta do Spotif
 5. No navegador, abra `URL_DO_EXEC?token=SEU_TOKEN&spotify=login` e clique em **Autorizar o Spotify**. Ao final, aparece "Spotify conectado".
 6. O card aparece nos perfis com `spotify: true`. Ele só é exibido enquanto algo toca, ou por 10 minutos depois de pausar.
 
+## 7. Barra de notícias (opcional)
+
+No perfil, preencha `news` com os sites, por exemplo `news: ['g1.globo.com', { site: 'https://site.com/feed/', name: 'Site' }]`. O script usa o feed RSS que o site anuncia e, se não achar, as manchetes do site no Google Notícias. As manchetes passam no rodapé, misturadas em ordem aleatória, e são atualizadas a cada 30 minutos. Com `news` vazio, a barra não aparece.
+
 ## Fotos e vídeos do álbum
 
 Os vídeos do álbum tocam sozinhos, sem som, no fundo, e a próxima foto entra quando o vídeo acaba (no máximo 2 minutos por vídeo). No Chromecast sem Google TV, que é mais fraco, o vídeo aparece como foto (o primeiro quadro).
