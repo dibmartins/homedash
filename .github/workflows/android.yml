@@ -1,0 +1,66 @@
+name: App Android
+
+on:
+  push:
+    branches: [main]
+    paths: ["android/**", ".github/workflows/android.yml"]
+  pull_request:
+    paths: ["android/**", ".github/workflows/android.yml"]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: android
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - uses: gradle/actions/setup-gradle@v4
+
+      - name: Preparar chave de assinatura (opcional)
+        env:
+          KEYSTORE_B64: ${{ secrets.HOMEDASH_KEYSTORE_BASE64 }}
+        run: |
+          if [ -n "$KEYSTORE_B64" ]; then
+            echo "$KEYSTORE_B64" | base64 -d > "$RUNNER_TEMP/homedash.jks"
+            echo "HOMEDASH_KEYSTORE_PATH=$RUNNER_TEMP/homedash.jks" >> "$GITHUB_ENV"
+          else
+            echo "::warning::Sem o segredo HOMEDASH_KEYSTORE_BASE64 o APK sai com a chave de debug e não atualiza por cima da versão anterior."
+          fi
+
+      - name: Gerar APK
+        env:
+          HOMEDASH_KEYSTORE_PASSWORD: ${{ secrets.HOMEDASH_KEYSTORE_PASSWORD }}
+          HOMEDASH_KEY_ALIAS: ${{ secrets.HOMEDASH_KEY_ALIAS }}
+          HOMEDASH_KEY_PASSWORD: ${{ secrets.HOMEDASH_KEY_PASSWORD }}
+        run: |
+          chmod +x gradlew
+          ./gradlew --no-daemon assembleRelease
+          cp app/build/outputs/apk/release/app-release.apk ../painel-da-familia.apk
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: painel-da-familia-apk
+          path: painel-da-familia.apk
+
+      - name: Publicar na release "app-mais-recente"
+        if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
+        working-directory: .
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release delete app-mais-recente --yes --cleanup-tag || true
+          gh release create app-mais-recente painel-da-familia.apk \
+            --title "Painel da Família (build ${{ github.run_number }})" \
+            --notes "APK gerado automaticamente a partir de ${{ github.sha }}." \
+            --latest
