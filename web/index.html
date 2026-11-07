@@ -352,7 +352,8 @@
     renderMenu(data.menu);
     setPhotos(data.photos || []);
     lastOk = Date.now();
-    $("status").textContent = (data.demo ? "dados de exemplo · " : "") + "atualizado às " + hm(new Date());
+    $("status").textContent = (data.demo ? "dados de exemplo · " : "") + "atualizado às " + hm(new Date()) +
+      (data.warnings && data.warnings.length ? " · aviso: " + data.warnings.join(" | ") : "");
   }
 
   // ---------- dados de exemplo (sem "api") ----------

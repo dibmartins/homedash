@@ -88,14 +88,21 @@ function doGet(e) {
   const cached = cache.get(cacheKey);
   if (cached) return ContentService.createTextOutput(cached).setMimeType(ContentService.MimeType.JSON);
 
-  const sheet = SHEET_ID ? SpreadsheetApp.openById(SHEET_ID) : null;
+  // Cada parte é lida separadamente: se uma falhar, as outras continuam aparecendo
+  // e o motivo vai em "warnings" (visível no rodapé do painel).
+  const warnings = [];
+  const safe = (label, fn, fallback) => {
+    try { return fn(); } catch (err) { warnings.push(label + ': ' + err.message); return fallback; }
+  };
+  const sheet = SHEET_ID ? safe('planilha', () => SpreadsheetApp.openById(SHEET_ID), null) : null;
   const body = JSON.stringify({
     name: profile.name,
-    events: getEvents_(profile, days),
-    reminders: getReminders_(profile, sheet),
-    shopping: profile.shopping ? getShopping_(sheet) : null,
-    menu: profile.menu ? getMenu_(sheet) : null,
-    photos: getPhotos_(profile.photos || {}),
+    events: safe('agenda', () => getEvents_(profile, days), []),
+    reminders: safe('lembretes', () => getReminders_(profile, sheet), []),
+    shopping: profile.shopping ? safe('compras', () => getShopping_(sheet), []) : null,
+    menu: profile.menu ? safe('cardápio', () => getMenu_(sheet), []) : null,
+    photos: safe('fotos', () => getPhotos_(profile.photos || {}), []),
+    warnings: warnings,
     updated: new Date().toISOString(),
   });
   try { cache.put(cacheKey, body, CACHE_SECONDS); } catch (err) { /* resposta grande demais para o cache */ }
@@ -141,6 +148,7 @@ function getReminders_(profile, sheet) {
   const items = [];
 
   if (profile.taskLists && profile.taskLists.length) {
+    if (typeof Tasks === 'undefined') throw new Error('adicione o serviço "Google Tasks API" e publique uma nova versão');
     const lists = Tasks.Tasklists.list({ maxResults: 100 }).items || [];
     lists.filter(l => profile.taskLists.indexOf(l.title) !== -1).forEach(l => {
       let pageToken;
