@@ -213,7 +213,7 @@ function getMenu_(sheet) {
 function getPhotos_(cfg) {
   const cache = CacheService.getScriptCache();
   if (cfg.album) {
-    const ck = 'album-' + Utilities.base64Encode(cfg.album).slice(0, 200);
+    const ck = 'album-v2-' + Utilities.base64Encode(cfg.album).slice(0, 200);
     const hit = cache.get(ck);
     if (hit) return JSON.parse(hit);
     // Lê o álbum compartilhado (link "photos.app.goo.gl/..."). Não é uma API oficial:
@@ -415,5 +415,23 @@ function teste() {
   Object.keys(PROFILES).forEach(k => {
     const r = doGet({ parameter: { token: TOKEN, pessoa: k } }).getContent();
     Logger.log(k + ': ' + r.slice(0, 2000));
+  });
+}
+
+/** Rode no editor para ver quantos vídeos o script encontrou no álbum e o que o Google responde. */
+function testeVideos() {
+  const cfg = PROFILES.familia.photos || {};
+  if (!cfg.album) return Logger.log('nenhum álbum configurado no perfil familia');
+  const html = UrlFetchApp.fetch(cfg.album, { followRedirects: true, muteHttpExceptions: true }).getContentText();
+  const re = /\["(https:\/\/lh3\.googleusercontent\.com\/pw\/[^"]+)",\s*(\d+),\s*(\d+)/g;
+  const urls = [];
+  let m;
+  while ((m = re.exec(html)) !== null) if (urls.indexOf(m[1]) === -1) urls.push(m[1]);
+  const videos = videoSet_(urls);
+  Logger.log('itens no álbum: ' + urls.length + ' · vídeos encontrados: ' + Object.keys(videos).length);
+  urls.slice(0, 15).forEach(u => {
+    const r = UrlFetchApp.fetch(u + '=dv', { headers: { Range: 'bytes=0-0' }, followRedirects: true, muteHttpExceptions: true });
+    const h = r.getHeaders();
+    Logger.log(r.getResponseCode() + ' ' + (h['Content-Type'] || h['content-type'] || '?') + (videos[u] ? '  <- vídeo' : ''));
   });
 }
