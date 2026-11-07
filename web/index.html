@@ -18,8 +18,8 @@
 <style>
   :root {
     --bg: #11151c;
-    --panel: #1a2029;
-    --line: #2a3240;
+    --panel: rgba(14, 18, 25, 0.62);
+    --line: rgba(255, 255, 255, 0.10);
     --text: #eef1f5;
     --muted: #93a0b4;
     --accent: #f2b544;
@@ -28,6 +28,8 @@
   }
   * { box-sizing: border-box; margin: 0; padding: 0; }
   html, body { height: 100%; background: var(--bg); color: var(--text); overflow: hidden; }
+  /* o fundo fica só no html: no body ele cobriria a foto (z-index negativo) */
+  body { background: transparent; text-shadow: 0 1px 3px rgba(0, 0, 0, 0.45); }
   body {
     font-family: "Google Sans", Roboto, "Segoe UI", system-ui, sans-serif;
     font-size: 1.5vw;
@@ -40,37 +42,45 @@
   header {
     grid-column: 1 / -1;
     display: flex; align-items: flex-end; justify-content: space-between;
-    border-bottom: 2px solid var(--line); padding-bottom: 1.4vh;
+    padding-bottom: 0.6vh;
   }
+
+  /* foto de fundo em tela cheia */
+  #bg { position: fixed; inset: 0; z-index: -2; background: var(--bg); }
+  #bg img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; opacity: 0; transition: opacity 2s ease; }
+  #bg img.show { opacity: 1; }
+  /* escurece em cima (relógio) e embaixo, e um pouco no geral, para o texto continuar legível */
+  #shade { position: fixed; inset: 0; z-index: -1; pointer-events: none;
+    background: linear-gradient(to bottom, rgba(0,0,0,0.55) 0%, rgba(0,0,0,0.15) 30%, rgba(0,0,0,0.15) 65%, rgba(0,0,0,0.5) 100%); }
   .hello { font-size: 1.6vw; color: var(--accent); font-weight: 600; margin-bottom: 0.6vh; }
   #clock { font-size: 5.6vw; font-weight: 500; line-height: 1; letter-spacing: -0.02em; }
-  #date { font-size: 1.8vw; color: var(--muted); margin-top: 0.6vh; }
+  #date { font-size: 1.8vw; color: #d5dbe5; margin-top: 0.6vh; }
   #weather { text-align: right; }
   #weather .now { font-size: 3.6vw; font-weight: 500; line-height: 1; }
-  #weather .range { font-size: 1.4vw; color: var(--muted); margin-top: 0.6vh; }
-  #weather .days { display: flex; gap: 1.3vw; justify-content: flex-end; margin-top: 0.7vh; font-size: 1.25vw; color: var(--muted); }
+  #weather .range { font-size: 1.4vw; color: #d5dbe5; margin-top: 0.6vh; }
+  #weather .days { display: flex; gap: 1.3vw; justify-content: flex-end; margin-top: 0.7vh; font-size: 1.25vw; color: #d5dbe5; }
 
-  .card { background: var(--panel); border-radius: 1.1vw; padding: 1.8vh 1.3vw; overflow: hidden; min-height: 0; }
+  .card { background: var(--panel); border: 1px solid rgba(255, 255, 255, 0.07); border-radius: 1.1vw; padding: 1.8vh 1.3vw; overflow: hidden; min-height: 0;
+    -webkit-backdrop-filter: blur(10px); backdrop-filter: blur(10px); }
+  /* Chromecast antigo: sem desfoque, que pesa no processador; compensa com fundo mais opaco */
+  .lite .card { -webkit-backdrop-filter: none; backdrop-filter: none; background: rgba(14, 18, 25, 0.74); }
+  .spacer { flex: 1 1 0; }
+  .more { color: var(--muted); font-style: italic; font-size: 1.25vw; padding-top: 0.4vh; }
   .col { display: flex; flex-direction: column; gap: 2vh; min-height: 0; }
   .col > .card { flex: 1 1 0; }
   h2 { font-size: 1.15vw; text-transform: uppercase; letter-spacing: 0.12em; color: var(--accent); font-weight: 600; margin-bottom: 1vh; }
 
   /* agenda */
   .day { margin-bottom: 1.4vh; }
-  .day-title { font-size: 1.35vw; color: var(--muted); font-weight: 600; margin-bottom: 0.4vh; }
+  .day-title { font-size: 1.35vw; color: #b9c3d3; font-weight: 600; margin-bottom: 0.4vh; }
   .day.is-today .day-title { color: var(--today); }
   .event { display: flex; align-items: baseline; gap: 0.8vw; padding: 0.6vh 0; border-bottom: 1px solid var(--line); }
   .event:last-child { border-bottom: 0; }
   .event .dot { width: 0.75vw; height: 0.75vw; border-radius: 50%; flex: none; }
-  .event .time { width: 5.4vw; flex: none; color: var(--muted); font-variant-numeric: tabular-nums; font-size: 1.35vw; }
+  .event .time { width: 5.4vw; flex: none; color: #b9c3d3; font-variant-numeric: tabular-nums; font-size: 1.35vw; }
   .event .title { flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-size: 1.55vw; }
-  .event.past { opacity: 0.45; }
+  .event.past { opacity: 0.55; }
 
-  /* fotos */
-  #photo { position: relative; padding: 0; background: #000; }
-  #photo img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; opacity: 0; transition: opacity 1.5s ease; }
-  #photo img.show { opacity: 1; }
-  #photo .empty { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; }
 
   /* listas */
   ul { list-style: none; }
@@ -93,10 +103,12 @@
   .menu-row .m small { color: var(--muted); font-size: 1.1vw; margin-right: 0.3vw; }
 
   .hidden { display: none !important; }
-  #status { position: fixed; right: 1vw; bottom: 0.6vh; font-size: 0.85vw; color: #5d6878; }
+  #status { position: fixed; right: 1vw; bottom: 0.6vh; font-size: 0.85vw; color: rgba(255, 255, 255, 0.45); }
 </style>
 </head>
 <body>
+  <div id="bg"></div>
+  <div id="shade"></div>
   <header>
     <div>
       <div class="hello" id="hello"></div>
@@ -112,8 +124,8 @@
   </div>
 
   <div class="col" id="middle">
-    <div class="card" id="photo" style="flex: 1.6 1 0"><div class="empty">Sem fotos</div></div>
-    <div class="card" id="menu-card">
+    <div class="spacer"></div>
+    <div class="card" id="menu-card" style="flex: none">
       <h2>Cardápio</h2>
       <div id="menu"></div>
     </div>
@@ -221,7 +233,7 @@
   function renderItems(items, max, withDue) {
     if (!items || !items.length) return '<div class="empty">Tudo feito</div>';
     var today = startOfDay(new Date()), html = "<ul>";
-    items.slice(0, max).forEach(function (t) {
+    items.forEach(function (t) {
       var due = "", late = false;
       if (withDue && t.due) {
         var d = startOfDay(new Date(t.due.slice(0, 10) + "T12:00:00")); // Tasks guarda só a data
@@ -231,7 +243,6 @@
       html += '<li class="' + (late ? "late" : "") + '"><span>' + esc(t.title) + "</span>" +
               (due ? '<span class="due">' + due + "</span>" : "") + "</li>";
     });
-    if (items.length > max) html += '<li class="more empty">+ ' + (items.length - max) + " itens</li>";
     return html + "</ul>";
   }
 
@@ -257,39 +268,74 @@
     $("menu").innerHTML = html;
   }
 
-  // ---------- fotos ----------
-  var photos = [], photoIdx = -1, photoTimer = null;
+  // ---------- fotos (fundo da tela inteira) ----------
+  // Pede a foto no tamanho real da tela (TVs 4K chegam a 3840 px) para não ficar serrilhada.
+  var SCREEN_W = Math.min(3840, Math.round(screen.width * (window.devicePixelRatio || 1)));
+  var SCREEN_H = Math.min(2160, Math.round(screen.height * (window.devicePixelRatio || 1)));
+  var photos = [], photosKey = "", photoIdx = -1, photoTimer = null;
   function setPhotos(list) {
-    var changed = JSON.stringify(list) !== JSON.stringify(photos);
-    photos = list || [];
-    if (!photos.length) { $("photo").innerHTML = '<div class="empty">Sem fotos</div>'; return; }
-    if (changed || !photoTimer) {
-      // embaralha para não repetir sempre a mesma sequência
-      for (var i = photos.length - 1; i > 0; i--) { var j = Math.floor(Math.random() * (i + 1)); var t = photos[i]; photos[i] = photos[j]; photos[j] = t; }
-      photoIdx = -1;
-      nextPhoto();
-      clearInterval(photoTimer);
-      photoTimer = setInterval(nextPhoto, CONFIG.photoEveryMs);
-    }
+    list = list || [];
+    var key = JSON.stringify(list);
+    if (!list.length) { photos = []; photosKey = ""; clearInterval(photoTimer); photoTimer = null; $("bg").innerHTML = ""; return; }
+    if (key === photosKey && photoTimer) return; // mesma lista: segue a sequência atual
+    photosKey = key;
+    photos = list.slice();
+    // embaralha para não repetir sempre a mesma sequência
+    for (var i = photos.length - 1; i > 0; i--) { var j = Math.floor(Math.random() * (i + 1)); var t = photos[i]; photos[i] = photos[j]; photos[j] = t; }
+    photoIdx = -1;
+    nextPhoto();
+    clearInterval(photoTimer);
+    photoTimer = setInterval(nextPhoto, CONFIG.photoEveryMs);
   }
   function photoUrl(p) {
-    if (p.url) return Promise.resolve(p.url);
+    if (p.url) {
+      // álbum do Google Fotos: troca o sufixo de tamanho (=w1280-h800) pelo da tela
+      if (/googleusercontent\.com/.test(p.url)) {
+        return Promise.resolve(p.url.replace(/=[^=\/]*$/, "") + "=w" + SCREEN_W + "-h" + SCREEN_H);
+      }
+      return Promise.resolve(p.url);
+    }
     // fotos do Google Drive chegam como data URL pedida ao script
-    return fetch(apiUrl({ foto: p.id })).then(function (r) { return r.json(); }).then(function (j) { return j.dataUrl; });
+    return fetch(apiUrl({ foto: p.id, w: SCREEN_W })).then(function (r) { return r.json(); }).then(function (j) { return j.dataUrl; });
   }
   function nextPhoto() {
     if (!photos.length) return;
     photoIdx = (photoIdx + 1) % photos.length;
     photoUrl(photos[photoIdx]).then(function (src) {
-      var box = $("photo"), img = new Image();
+      if (!src) return;
+      var box = $("bg"), img = new Image();
+      img.decoding = "async";
       img.onload = function () {
         box.appendChild(img);
-        requestAnimationFrame(function () { img.classList.add("show"); });
-        var old = box.querySelectorAll("img, .empty");
-        setTimeout(function () { for (var i = 0; i < old.length - 1; i++) old[i].remove(); }, 1700);
+        requestAnimationFrame(function () { requestAnimationFrame(function () { img.classList.add("show"); }); });
+        var old = box.querySelectorAll("img");
+        setTimeout(function () { for (var i = 0; i < old.length - 1; i++) old[i].remove(); }, 2200);
       };
       img.src = src;
     }).catch(function () {});
+  }
+
+  // ---------- encaixe: nada é cortado no fim dos cards ----------
+  // Remove os últimos itens até o card caber e mostra "+ N ..." no lugar.
+  function fit(card, list, selector, noun) {
+    if (!card || !list) return;
+    var old = list.querySelector(".more");
+    if (old) old.remove();
+    var items = list.querySelectorAll(selector), hidden = 0, more = null;
+    for (var i = items.length - 1; i > 0 && card.scrollHeight > card.clientHeight + 1; i--) {
+      var it = items[i], parent = it.parentNode;
+      parent.removeChild(it);
+      hidden++;
+      // dia da agenda que ficou sem eventos some junto
+      if (parent.classList && parent.classList.contains("day") && !parent.querySelector(selector)) parent.remove();
+      if (!more) { more = document.createElement(list.tagName === "UL" ? "li" : "div"); more.className = "more"; list.appendChild(more); }
+      more.textContent = "+ " + hidden + " " + noun;
+    }
+  }
+  function fitAll() {
+    fit($("agenda"), $("events"), ".event", "eventos");
+    fit($("reminders-card"), $("reminders").querySelector("ul"), "li", "itens");
+    fit($("shopping-card"), $("shopping").querySelector("ul"), "li", "itens");
   }
 
   // ---------- tempo (Open-Meteo, sem chave) ----------
@@ -351,8 +397,10 @@
     $("shopping-card").classList.toggle("hidden", !data.shopping);
     renderMenu(data.menu);
     setPhotos(data.photos || []);
+    fitAll();
     lastOk = Date.now();
-    $("status").textContent = (data.demo ? "dados de exemplo · " : "") + "atualizado às " + hm(new Date());
+    $("status").textContent = (data.demo ? "dados de exemplo · " : "") + "atualizado às " + hm(new Date()) +
+      (data.warnings && data.warnings.length ? " · aviso: " + data.warnings.join(" | ") : "");
   }
 
   // ---------- dados de exemplo (sem "api") ----------
@@ -405,6 +453,7 @@
 
   // ---------- Chromecast: mantém o receptor aberto ----------
   if (/CrKey/.test(navigator.userAgent)) {
+    document.documentElement.className += " lite";
     var s = document.createElement("script");
     s.src = "https://www.gstatic.com/cast/sdk/libs/caf_receiver/v3/cast_receiver_framework.js";
     s.onload = function () {
