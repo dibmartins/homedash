@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Painel da Família</string>
+    <string name="settings_title">Configurar o painel</string>
+    <string name="profile_label">De quem é este painel?</string>
+    <string name="page_url_label">Endereço da página do painel</string>
+    <string name="api_url_label">Endereço do script do Google (termina em /exec)</string>
+    <string name="token_label">Token (o mesmo do script)</string>
+    <string name="city_label">Cidade (para o tempo)</string>
+    <string name="lat_lon_label">Latitude, longitude (ex.: -15.79, -47.88)</string>
+    <string name="start_on_boot">Abrir o painel quando a TV ligar</string>
+    <string name="save">Salvar</string>
+    <string name="saved">Configuração salva</string>
+    <string name="reloading">Atualizando o painel…</string>
+    <string name="hint">Para voltar aqui depois, segure o botão OK do controle. Dica: o app Google TV no celular tem um teclado que aceita colar textos.</string>
+    <string name="overlay_hint">Não consegui abrir a permissão de sobreposição. Veja o README para ativá-la pelo adb.</string>
+    <string name="version">Versão %1$s</string>
+</resources>

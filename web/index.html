@@ -1,0 +1,428 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Painel da Família</title>
+<!--
+  Painel da Família — página única para TV (Chromecast, Android TV, navegador).
+
+  Parâmetros de URL (todos opcionais):
+    api     URL do Web App do Google Apps Script (termina em /exec)
+    token   segredo configurado no script (TOKEN)
+    pessoa  perfil configurado no script: familia, pessoa1, pessoa2, pessoa3...
+    lat/lon coordenadas para a previsão do tempo (sem elas, o tempo não aparece)
+    cidade  nome exibido junto ao tempo
+  Sem "api", o painel mostra dados de exemplo.
+-->
+<style>
+  :root {
+    --bg: #11151c;
+    --panel: #1a2029;
+    --line: #2a3240;
+    --text: #eef1f5;
+    --muted: #93a0b4;
+    --accent: #f2b544;
+    --today: #4fb38b;
+    --late: #ef6b6b;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { height: 100%; background: var(--bg); color: var(--text); overflow: hidden; }
+  body {
+    font-family: "Google Sans", Roboto, "Segoe UI", system-ui, sans-serif;
+    font-size: 1.5vw;
+    padding: 2.5vh 2.6vw;           /* margem de segurança para overscan */
+    display: grid;
+    grid-template-columns: 1.15fr 1.25fr 0.95fr;
+    grid-template-rows: auto 1fr;
+    gap: 2vh 1.5vw;
+  }
+  header {
+    grid-column: 1 / -1;
+    display: flex; align-items: flex-end; justify-content: space-between;
+    border-bottom: 2px solid var(--line); padding-bottom: 1.4vh;
+  }
+  .hello { font-size: 1.6vw; color: var(--accent); font-weight: 600; margin-bottom: 0.6vh; }
+  #clock { font-size: 5.6vw; font-weight: 500; line-height: 1; letter-spacing: -0.02em; }
+  #date { font-size: 1.8vw; color: var(--muted); margin-top: 0.6vh; }
+  #weather { text-align: right; }
+  #weather .now { font-size: 3.6vw; font-weight: 500; line-height: 1; }
+  #weather .range { font-size: 1.4vw; color: var(--muted); margin-top: 0.6vh; }
+  #weather .days { display: flex; gap: 1.3vw; justify-content: flex-end; margin-top: 0.7vh; font-size: 1.25vw; color: var(--muted); }
+
+  .card { background: var(--panel); border-radius: 1.1vw; padding: 1.8vh 1.3vw; overflow: hidden; min-height: 0; }
+  .col { display: flex; flex-direction: column; gap: 2vh; min-height: 0; }
+  .col > .card { flex: 1 1 0; }
+  h2 { font-size: 1.15vw; text-transform: uppercase; letter-spacing: 0.12em; color: var(--accent); font-weight: 600; margin-bottom: 1vh; }
+
+  /* agenda */
+  .day { margin-bottom: 1.4vh; }
+  .day-title { font-size: 1.35vw; color: var(--muted); font-weight: 600; margin-bottom: 0.4vh; }
+  .day.is-today .day-title { color: var(--today); }
+  .event { display: flex; align-items: baseline; gap: 0.8vw; padding: 0.6vh 0; border-bottom: 1px solid var(--line); }
+  .event:last-child { border-bottom: 0; }
+  .event .dot { width: 0.75vw; height: 0.75vw; border-radius: 50%; flex: none; }
+  .event .time { width: 5.4vw; flex: none; color: var(--muted); font-variant-numeric: tabular-nums; font-size: 1.35vw; }
+  .event .title { flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-size: 1.55vw; }
+  .event.past { opacity: 0.45; }
+
+  /* fotos */
+  #photo { position: relative; padding: 0; background: #000; }
+  #photo img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; opacity: 0; transition: opacity 1.5s ease; }
+  #photo img.show { opacity: 1; }
+  #photo .empty { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; }
+
+  /* listas */
+  ul { list-style: none; }
+  li { padding: 0.45vh 0; display: flex; gap: 0.7vw; align-items: baseline; font-size: 1.5vw; }
+  li::before { content: ""; width: 1vw; height: 1vw; border: 2px solid var(--muted); border-radius: 0.25vw; flex: none; transform: translateY(0.12vw); }
+  li span:first-child { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  li .due { margin-left: auto; color: var(--muted); font-size: 1.15vw; white-space: nowrap; }
+  li.late .due { color: var(--late); }
+  li.more::before { display: none; }
+  .two-cols ul { columns: 2; column-gap: 1vw; }
+  .two-cols li { break-inside: avoid; }
+  .empty { color: var(--muted); font-style: italic; }
+
+  /* cardápio */
+  .menu-row { display: flex; gap: 0.8vw; padding: 0.5vh 0; border-bottom: 1px solid var(--line); align-items: baseline; }
+  .menu-row:last-child { border-bottom: 0; }
+  .menu-row .d { width: 3.6vw; flex: none; color: var(--muted); font-weight: 600; font-size: 1.25vw; text-transform: capitalize; }
+  .menu-row.is-today .d { color: var(--today); }
+  .menu-row .m { flex: 1; font-size: 1.4vw; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .menu-row .m small { color: var(--muted); font-size: 1.1vw; margin-right: 0.3vw; }
+
+  .hidden { display: none !important; }
+  #status { position: fixed; right: 1vw; bottom: 0.6vh; font-size: 0.85vw; color: #5d6878; }
+</style>
+</head>
+<body>
+  <header>
+    <div>
+      <div class="hello" id="hello"></div>
+      <div id="clock">--:--</div>
+      <div id="date"></div>
+    </div>
+    <div id="weather"></div>
+  </header>
+
+  <div class="card" id="agenda">
+    <h2>Agenda</h2>
+    <div id="events"></div>
+  </div>
+
+  <div class="col" id="middle">
+    <div class="card" id="photo" style="flex: 1.6 1 0"><div class="empty">Sem fotos</div></div>
+    <div class="card" id="menu-card">
+      <h2>Cardápio</h2>
+      <div id="menu"></div>
+    </div>
+  </div>
+
+  <div class="col" id="right">
+    <div class="card" id="reminders-card">
+      <h2>Lembretes</h2>
+      <div id="reminders"></div>
+    </div>
+    <div class="card two-cols" id="shopping-card">
+      <h2>Compras</h2>
+      <div id="shopping"></div>
+    </div>
+  </div>
+
+  <div id="status"></div>
+
+<script>
+(function () {
+  "use strict";
+
+  var params = new URLSearchParams(location.search);
+  var CONFIG = {
+    api: params.get("api") || "",
+    token: params.get("token") || "",
+    pessoa: (params.get("pessoa") || "familia").toLowerCase(),
+    lat: params.get("lat") || "",
+    lon: params.get("lon") || "",
+    cidade: params.get("cidade") || "",
+    days: 5,
+    refreshDataMs: 5 * 60 * 1000,
+    refreshWeatherMs: 30 * 60 * 1000,
+    photoEveryMs: 45 * 1000
+  };
+
+  var $ = function (id) { return document.getElementById(id); };
+  function esc(s) {
+    return String(s == null ? "" : s).replace(/[&<>"']/g, function (c) {
+      return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c];
+    });
+  }
+  function pad(n) { return n < 10 ? "0" + n : "" + n; }
+  function hm(d) { return pad(d.getHours()) + ":" + pad(d.getMinutes()); }
+  function startOfDay(d) { var x = new Date(d); x.setHours(0, 0, 0, 0); return x; }
+  function dayKey(d) { return d.getFullYear() + "-" + pad(d.getMonth() + 1) + "-" + pad(d.getDate()); }
+
+  var WEEK = ["domingo", "segunda", "terça", "quarta", "quinta", "sexta", "sábado"];
+  var WEEK_SHORT = ["dom", "seg", "ter", "qua", "qui", "sex", "sáb"];
+  var MONTHS = ["janeiro", "fevereiro", "março", "abril", "maio", "junho", "julho",
+                "agosto", "setembro", "outubro", "novembro", "dezembro"];
+
+  // ---------- relógio ----------
+  var profileName = "";
+  function tick() {
+    var now = new Date(), h = now.getHours();
+    $("clock").textContent = hm(now);
+    $("date").textContent = WEEK[now.getDay()] + ", " + now.getDate() + " de " + MONTHS[now.getMonth()];
+    var greet = h < 5 ? "Boa noite" : h < 12 ? "Bom dia" : h < 18 ? "Boa tarde" : "Boa noite";
+    $("hello").textContent = greet + (profileName ? ", " + profileName : "");
+  }
+
+  // ---------- agenda ----------
+  function dayLabel(d) {
+    var diff = Math.round((startOfDay(d) - startOfDay(new Date())) / 86400000);
+    if (diff === 0) return "Hoje";
+    if (diff === 1) return "Amanhã";
+    return WEEK[d.getDay()] + ", " + d.getDate() + "/" + pad(d.getMonth() + 1);
+  }
+
+  function renderEvents(events) {
+    var now = new Date(), today = startOfDay(now), groups = [], i;
+    for (i = 0; i < CONFIG.days; i++) {
+      var d = new Date(today); d.setDate(d.getDate() + i);
+      groups.push({ date: d, items: [] });
+    }
+    events.forEach(function (ev) {
+      var s = new Date(ev.start), e = new Date(ev.end || ev.start);
+      groups.forEach(function (g) {
+        var dEnd = new Date(g.date); dEnd.setDate(dEnd.getDate() + 1);
+        if ((s < dEnd && e > g.date) || (+s === +e && s >= g.date && s < dEnd)) g.items.push(ev);
+      });
+    });
+    var html = "";
+    groups.forEach(function (g, idx) {
+      if (idx > 1 && !g.items.length) return; // esconde dias vazios depois de amanhã
+      g.items.sort(function (a, b) {
+        if (!!a.allDay !== !!b.allDay) return a.allDay ? -1 : 1;
+        return new Date(a.start) - new Date(b.start);
+      });
+      html += '<div class="day' + (idx === 0 ? " is-today" : "") + '"><div class="day-title">' + esc(dayLabel(g.date)) + "</div>";
+      if (!g.items.length) html += '<div class="empty">Nada marcado</div>';
+      g.items.forEach(function (ev) {
+        var past = !ev.allDay && new Date(ev.end || ev.start) < now;
+        html += '<div class="event' + (past ? " past" : "") + '"><span class="dot" style="background:' + esc(ev.color || "#7aa2f7") + '"></span>' +
+                '<span class="time">' + (ev.allDay ? "dia todo" : hm(new Date(ev.start))) + "</span>" +
+                '<span class="title">' + esc(ev.title) + "</span></div>";
+      });
+      html += "</div>";
+    });
+    $("events").innerHTML = html;
+  }
+
+  // ---------- lembretes e compras ----------
+  function renderItems(items, max, withDue) {
+    if (!items || !items.length) return '<div class="empty">Tudo feito</div>';
+    var today = startOfDay(new Date()), html = "<ul>";
+    items.slice(0, max).forEach(function (t) {
+      var due = "", late = false;
+      if (withDue && t.due) {
+        var d = startOfDay(new Date(t.due.slice(0, 10) + "T12:00:00")); // Tasks guarda só a data
+        late = d < today;
+        due = +d === +today ? "hoje" : d.getDate() + "/" + pad(d.getMonth() + 1);
+      }
+      html += '<li class="' + (late ? "late" : "") + '"><span>' + esc(t.title) + "</span>" +
+              (due ? '<span class="due">' + due + "</span>" : "") + "</li>";
+    });
+    if (items.length > max) html += '<li class="more empty">+ ' + (items.length - max) + " itens</li>";
+    return html + "</ul>";
+  }
+
+  // ---------- cardápio ----------
+  function renderMenu(menu) {
+    if (!menu || !menu.length) { $("menu-card").classList.add("hidden"); return; }
+    $("menu-card").classList.remove("hidden");
+    var todayIdx = new Date().getDay(), html = "";
+    // mostra de hoje em diante, até 4 dias
+    var ordered = [];
+    for (var i = 0; i < 7 && ordered.length < 4; i++) {
+      var wd = (todayIdx + i) % 7;
+      var row = menu.filter(function (m) { return m.weekday === wd; })[0];
+      if (row) ordered.push({ wd: wd, row: row, today: i === 0 });
+    }
+    ordered.forEach(function (o) {
+      var parts = [];
+      if (o.row.almoco) parts.push("<small>almoço</small>" + esc(o.row.almoco));
+      if (o.row.jantar) parts.push("<small>jantar</small>" + esc(o.row.jantar));
+      html += '<div class="menu-row' + (o.today ? " is-today" : "") + '"><span class="d">' +
+              (o.today ? "hoje" : WEEK_SHORT[o.wd]) + '</span><span class="m">' + (parts.join(" &nbsp; ") || "—") + "</span></div>";
+    });
+    $("menu").innerHTML = html;
+  }
+
+  // ---------- fotos ----------
+  var photos = [], photoIdx = -1, photoTimer = null;
+  function setPhotos(list) {
+    var changed = JSON.stringify(list) !== JSON.stringify(photos);
+    photos = list || [];
+    if (!photos.length) { $("photo").innerHTML = '<div class="empty">Sem fotos</div>'; return; }
+    if (changed || !photoTimer) {
+      // embaralha para não repetir sempre a mesma sequência
+      for (var i = photos.length - 1; i > 0; i--) { var j = Math.floor(Math.random() * (i + 1)); var t = photos[i]; photos[i] = photos[j]; photos[j] = t; }
+      photoIdx = -1;
+      nextPhoto();
+      clearInterval(photoTimer);
+      photoTimer = setInterval(nextPhoto, CONFIG.photoEveryMs);
+    }
+  }
+  function photoUrl(p) {
+    if (p.url) return Promise.resolve(p.url);
+    // fotos do Google Drive chegam como data URL pedida ao script
+    return fetch(apiUrl({ foto: p.id })).then(function (r) { return r.json(); }).then(function (j) { return j.dataUrl; });
+  }
+  function nextPhoto() {
+    if (!photos.length) return;
+    photoIdx = (photoIdx + 1) % photos.length;
+    photoUrl(photos[photoIdx]).then(function (src) {
+      var box = $("photo"), img = new Image();
+      img.onload = function () {
+        box.appendChild(img);
+        requestAnimationFrame(function () { img.classList.add("show"); });
+        var old = box.querySelectorAll("img, .empty");
+        setTimeout(function () { for (var i = 0; i < old.length - 1; i++) old[i].remove(); }, 1700);
+      };
+      img.src = src;
+    }).catch(function () {});
+  }
+
+  // ---------- tempo (Open-Meteo, sem chave) ----------
+  function wmo(code) {
+    if (code === 0) return ["☀️", "céu limpo"];
+    if (code <= 2) return ["🌤️", "poucas nuvens"];
+    if (code === 3) return ["☁️", "nublado"];
+    if (code <= 48) return ["🌫️", "neblina"];
+    if (code <= 57) return ["🌦️", "garoa"];
+    if (code <= 67) return ["🌧️", "chuva"];
+    if (code <= 77) return ["❄️", "neve"];
+    if (code <= 82) return ["🌧️", "pancadas"];
+    return ["⛈️", "tempestade"];
+  }
+  function loadWeather() {
+    if (!CONFIG.lat || !CONFIG.lon) { $("weather").innerHTML = ""; return; }
+    var url = "https://api.open-meteo.com/v1/forecast?latitude=" + CONFIG.lat + "&longitude=" + CONFIG.lon +
+      "&current=temperature_2m,weather_code&daily=weather_code,temperature_2m_max,temperature_2m_min,precipitation_probability_max" +
+      "&timezone=auto&forecast_days=4";
+    return fetch(url).then(function (r) { return r.json(); }).then(function (w) {
+      var now = wmo(w.current.weather_code), d = w.daily, days = "";
+      for (var i = 1; i < d.time.length; i++) {
+        var dt = new Date(d.time[i] + "T12:00:00");
+        days += "<span>" + WEEK_SHORT[dt.getDay()] + " " + wmo(d.weather_code[i])[0] + " " + Math.round(d.temperature_2m_max[i]) + "°</span>";
+      }
+      $("weather").innerHTML =
+        '<div class="now">' + now[0] + " " + Math.round(w.current.temperature_2m) + "°</div>" +
+        '<div class="range">' + (CONFIG.cidade ? esc(CONFIG.cidade) + " · " : "") + now[1] + " · " +
+        Math.round(d.temperature_2m_min[0]) + "° / " + Math.round(d.temperature_2m_max[0]) + "° · chuva " +
+        d.precipitation_probability_max[0] + "%</div>" +
+        '<div class="days">' + days + "</div>";
+    }).catch(function () { /* mantém o último tempo exibido */ });
+  }
+
+  // ---------- dados ----------
+  function apiUrl(extra) {
+    var q = new URLSearchParams({ token: CONFIG.token, pessoa: CONFIG.pessoa, days: CONFIG.days, _: Date.now() });
+    Object.keys(extra || {}).forEach(function (k) { q.set(k, extra[k]); });
+    return CONFIG.api + (CONFIG.api.indexOf("?") === -1 ? "?" : "&") + q.toString();
+  }
+
+  var lastOk = 0;
+  function loadData() {
+    if (!CONFIG.api) { render(demoData(CONFIG.pessoa)); return; }
+    fetch(apiUrl()).then(function (r) { return r.json(); }).then(function (data) {
+      if (data.error) throw new Error(data.error);
+      render(data);
+    }).catch(function (err) {
+      $("status").textContent = "sem conexão com a agenda" + (lastOk ? " · última atualização " + hm(new Date(lastOk)) : "") + " · " + err.message;
+    });
+  }
+
+  function render(data) {
+    profileName = data.name || "";
+    tick();
+    renderEvents(data.events || []);
+    $("reminders").innerHTML = renderItems(data.reminders, 8, true);
+    $("shopping").innerHTML = renderItems(data.shopping, 12, false);
+    $("shopping-card").classList.toggle("hidden", !data.shopping);
+    renderMenu(data.menu);
+    setPhotos(data.photos || []);
+    lastOk = Date.now();
+    $("status").textContent = (data.demo ? "dados de exemplo · " : "") + "atualizado às " + hm(new Date());
+  }
+
+  // ---------- dados de exemplo (sem "api") ----------
+  function demoData(pessoa) {
+    var t = startOfDay(new Date());
+    function at(o, h, m) { var d = new Date(t); d.setDate(d.getDate() + o); d.setHours(h, m || 0); return d.toISOString(); }
+    function day(o) { var d = new Date(t); d.setDate(d.getDate() + o); return d.toISOString(); }
+    function due(o) { return dayKey(new Date(t.getTime() + o * 86400000)) + "T00:00:00.000Z"; }
+    var C = { familia: "#4fb38b", pessoa1: "#7aa2f7", pessoa2: "#e8768a", pessoa3: "#f2b544" };
+    var events = [
+      { who: "pessoa3", title: "Natação", start: at(0, 8, 30), end: at(0, 9, 30) },
+      { who: "familia", title: "Almoço em família", start: at(0, 12, 30), end: at(0, 14) },
+      { who: "pessoa2", title: "Pilates", start: at(0, 18), end: at(0, 19) },
+      { who: "familia", title: "Aniversário", start: day(1), end: day(2), allDay: true },
+      { who: "pessoa1", title: "Dentista", start: at(1, 10), end: at(1, 11) },
+      { who: "pessoa3", title: "Prova de matemática", start: day(2), end: day(3), allDay: true },
+      { who: "familia", title: "Reunião de pais na escola", start: at(2, 19), end: at(2, 20) },
+      { who: "pessoa2", title: "Consulta médica", start: at(3, 15), end: at(3, 16) },
+      { who: "pessoa1", title: "Futebol", start: at(3, 18, 30), end: at(3, 20) }
+    ];
+    var reminders = {
+      familia: [{ title: "Pagar conta de luz", due: due(-1) }, { title: "Levar o lixo reciclável", due: due(0) }, { title: "Renovar seguro do carro", due: due(4) }, { title: "Ligar para o encanador" }],
+      pessoa1: [{ title: "Pagar conta de luz", due: due(-1) }, { title: "Renovar seguro do carro", due: due(4) }, { title: "Trocar óleo do carro" }],
+      pessoa2: [{ title: "Comprar presente de aniversário", due: due(0) }, { title: "Agendar vacina", due: due(2) }],
+      pessoa3: [{ title: "Estudar para a prova", due: due(1) }, { title: "Levar a mochila da natação", due: due(0) }, { title: "Arrumar o quarto" }]
+    };
+    var names = { familia: "", pessoa1: "Pessoa 1", pessoa2: "Pessoa 2", pessoa3: "Pessoa 3" };
+    var p = names.hasOwnProperty(pessoa) ? pessoa : "familia";
+    var photo = function (seed) { return { url: "https://picsum.photos/seed/" + seed + "/1280/800" }; };
+    return {
+      name: names[p],
+      events: events.filter(function (e) { return p === "familia" || e.who === p || e.who === "familia"; })
+                    .map(function (e) { e.color = C[e.who]; return e; }),
+      reminders: reminders[p],
+      shopping: p === "pessoa3" ? null : [{ title: "Leite" }, { title: "Pão integral" }, { title: "Bananas" }, { title: "Café" },
+                 { title: "Detergente" }, { title: "Ovos" }, { title: "Queijo" }, { title: "Arroz" }],
+      menu: [
+        { weekday: 0, almoco: "Churrasco", jantar: "Sopa de legumes" },
+        { weekday: 1, almoco: "Frango grelhado", jantar: "Omelete" },
+        { weekday: 2, almoco: "Strogonoff", jantar: "Sanduíche natural" },
+        { weekday: 3, almoco: "Feijoada", jantar: "Caldo verde" },
+        { weekday: 4, almoco: "Peixe assado", jantar: "Panqueca" },
+        { weekday: 5, almoco: "Lasanha", jantar: "Pizza caseira" },
+        { weekday: 6, almoco: "Macarronada", jantar: "Lanche" }
+      ],
+      photos: [photo("familia1"), photo("praia2"), photo("parque3")],
+      demo: true
+    };
+  }
+
+  // ---------- Chromecast: mantém o receptor aberto ----------
+  if (/CrKey/.test(navigator.userAgent)) {
+    var s = document.createElement("script");
+    s.src = "https://www.gstatic.com/cast/sdk/libs/caf_receiver/v3/cast_receiver_framework.js";
+    s.onload = function () {
+      cast.framework.CastReceiverContext.getInstance().start({ disableIdleTimeout: true, skipPlayersLoad: true });
+    };
+    document.head.appendChild(s);
+  }
+
+  // ---------- inicialização ----------
+  tick();
+  setInterval(tick, 1000);
+  loadData();
+  setInterval(loadData, CONFIG.refreshDataMs);
+  loadWeather();
+  setInterval(loadWeather, CONFIG.refreshWeatherMs);
+  // recarrega uma vez por dia de madrugada (TVs fracas acumulam memória)
+  setInterval(function () { var n = new Date(); if (n.getHours() === 4 && n.getMinutes() === 0) location.reload(); }, 60000);
+})();
+</script>
+</body>
+</html>
