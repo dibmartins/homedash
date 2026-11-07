@@ -109,7 +109,7 @@ Se alguém transmitir YouTube ou outra coisa, o painel sai e volta no próximo e
 ## Segurança
 
 - **A página do painel não guarda nenhum segredo.** O token vai só no endereço que você configura em cada TV. Não coloque o token no repositório.
-- **O script é somente leitura.** O arquivo `appsscript.json` limita as permissões a ler agenda, tarefas, planilha e Drive. Ele não consegue apagar, alterar, enviar e-mail nem mexer na sua senha. Para usá-lo, no editor do Apps Script ative "Mostrar o arquivo de manifesto appsscript.json" (Configurações do projeto) e cole o conteúdo.
+- **O script só lê dados.** O arquivo `appsscript.json` limita as permissões a ler agenda, tarefas e Drive. A planilha exige a permissão completa de Planilhas (o `SpreadsheetApp.openById` não aceita a somente leitura), mas o código apenas lê a planilha configurada. Ele não tem permissão para enviar e-mail nem mexer na sua senha. Para usá-lo, no editor do Apps Script ative "Mostrar o arquivo de manifesto appsscript.json" (Configurações do projeto) e cole o conteúdo.
 - **Quem tiver o endereço `/exec` e o token consegue ver o que aparece no painel**, e nada além disso. Use um token longo e aleatório (o script recusa tokens com menos de 24 caracteres). Se desconfiar de vazamento, troque o `TOKEN` e implante de novo.
 - **Eventos marcados como "Particular"** no Google Agenda aparecem só como "Ocupado".
 - **Fotos do Drive:** o script só entrega fotos das pastas configuradas, nunca outros arquivos.
