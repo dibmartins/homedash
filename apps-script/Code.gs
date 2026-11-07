@@ -75,7 +75,7 @@ function doGet(e) {
   if (p.foto) {
     // só entrega fotos das pastas configuradas, nunca outros arquivos do Drive
     if (!allowedPhotoIds_()[p.foto]) return json_({ error: 'foto não permitida' });
-    return json_({ dataUrl: drivePhotoDataUrl_(p.foto) });
+    return json_({ dataUrl: drivePhotoDataUrl_(p.foto, p.w) });
   }
 
   const key = String(p.pessoa || 'familia').toLowerCase();
@@ -213,7 +213,7 @@ function getPhotos_(cfg) {
     while ((m = re.exec(html)) !== null) {
       if (seen[m[1]]) continue;
       seen[m[1]] = true;
-      out.push({ url: m[1] + '=w1280-h800' });
+      out.push({ url: m[1] + '=w1920-h1080' }); // o painel troca pelo tamanho real da tela
     }
     try { cache.put(ck, JSON.stringify(out), 6 * 3600); } catch (err) {}
     return out;
@@ -244,16 +244,17 @@ function allowedPhotoIds_() {
 }
 
 // Foto do Drive reduzida para a TV, devolvida como data URL (a pasta pode continuar privada).
-function drivePhotoDataUrl_(id) {
+function drivePhotoDataUrl_(id, w) {
+  const width = Math.min(Math.max(parseInt(w, 10) || 1920, 640), 3840);
   const cache = CacheService.getScriptCache();
-  const hit = cache.get('foto-' + id);
+  const hit = cache.get('foto-' + width + '-' + id);
   if (hit) return hit;
-  const url = 'https://drive.google.com/thumbnail?sz=w1280&id=' + encodeURIComponent(id);
+  const url = 'https://drive.google.com/thumbnail?sz=w' + width + '&id=' + encodeURIComponent(id);
   const res = UrlFetchApp.fetch(url, { headers: { Authorization: 'Bearer ' + ScriptApp.getOAuthToken() }, muteHttpExceptions: true });
   if (res.getResponseCode() !== 200) return null;
   const blob = res.getBlob();
   const dataUrl = 'data:' + blob.getContentType() + ';base64,' + Utilities.base64Encode(blob.getBytes());
-  try { cache.put('foto-' + id, dataUrl, 6 * 3600); } catch (err) { /* maior que 100 KB */ }
+  try { cache.put('foto-' + width + '-' + id, dataUrl, 6 * 3600); } catch (err) { /* maior que 100 KB */ }
   return dataUrl;
 }
 
