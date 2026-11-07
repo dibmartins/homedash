@@ -27,6 +27,8 @@ const SHEET_ID = '';
 //  photos: { album: 'link do álbum compartilhado do Google Fotos' } ou { folder: 'ID da pasta no Drive' }.
 //          Vídeos do álbum tocam sozinhos, sem som, no fundo da tela.
 //  spotify: mostrar o card "Tocando agora" (veja a seção Spotify no README).
+//  news:    sites para a barra de notícias do rodapé, ex.: ['g1.globo.com', { site: 'https://site.com/feed/', name: 'Site' }].
+//           Vazio = sem barra. As manchetes dos sites aparecem misturadas, em ordem aleatória.
 // Troque as chaves e os nomes pelos da sua casa na SUA cópia do script (não no repositório).
 const PROFILES = {
   familia: {
@@ -37,6 +39,7 @@ const PROFILES = {
     shopping: true,
     menu: true,
     photos: { album: '' },
+    news: [],
     spotify: true,
   },
   pessoa1: {
@@ -47,6 +50,7 @@ const PROFILES = {
     shopping: true,
     menu: true,
     photos: { album: '' },
+    news: [],
     spotify: true,
   },
   pessoa2: {
@@ -57,6 +61,7 @@ const PROFILES = {
     shopping: true,
     menu: true,
     photos: { album: '' },
+    news: [],
   },
   pessoa3: {
     name: 'Pessoa 3',
@@ -66,6 +71,7 @@ const PROFILES = {
     shopping: false,
     menu: true,
     photos: { album: '' },
+    news: [],
   },
 };
 
@@ -114,6 +120,7 @@ function doGet(e) {
     menu: profile.menu ? safe('cardápio', () => getMenu_(sheet), []) : null,
     photos: safe('fotos', () => getPhotos_(profile.photos || {}), []),
     spotify: !!(profile.spotify && spotifyConfigured_()),
+    news: (profile.news && profile.news.length) ? safe('notícias', () => getNews_(profile.news), []) : [],
     warnings: warnings,
     updated: new Date().toISOString(),
   });
@@ -397,6 +404,80 @@ function spotifyNowPlaying_() {
   }
   cache.put('spotify-now', JSON.stringify(now), 10);
   return now;
+}
+
+// ---------------- Notícias (barra do rodapé) ----------------
+// Para cada site: usa o feed RSS/Atom que o próprio site anuncia; se não achar,
+// busca as manchetes do site no Google Notícias. Guardado 30 minutos no cache.
+function getNews_(sites) {
+  const cache = CacheService.getScriptCache();
+  const out = [];
+  sites.forEach(s => {
+    const cfg = typeof s === 'string' ? { site: s } : s;
+    if (!cfg || !cfg.site) return;
+    const ck = 'news-' + Utilities.base64Encode(cfg.site).slice(0, 200);
+    let titles;
+    const hit = cache.get(ck);
+    if (hit) titles = JSON.parse(hit);
+    else {
+      try { titles = newsTitles_(cfg.site); } catch (err) { titles = []; }
+      try { cache.put(ck, JSON.stringify(titles), titles.length ? 1800 : 300); } catch (err) {}
+    }
+    const name = cfg.name || newsSourceName_(cfg.site);
+    titles.slice(0, cfg.max || 15).forEach(t => out.push({ title: t, source: name }));
+  });
+  return out;
+}
+
+function newsTitles_(site) {
+  const url = /^https?:\/\//i.test(site) ? site : 'https://' + site;
+  const opts = { followRedirects: true, muteHttpExceptions: true, headers: { 'User-Agent': 'Mozilla/5.0 (painel)' } };
+  const body = UrlFetchApp.fetch(url, opts).getContentText();
+  let titles = [];
+  if (/<(rss|feed|rdf:RDF)[\s>]/i.test(body.slice(0, 2000))) {
+    titles = feedTitles_(body);
+  } else {
+    // feed anunciado na página: <link rel="alternate" type="application/rss+xml" href="...">
+    const links = body.match(/<link[^>]+type=["']application\/(rss|atom)\+xml["'][^>]*>/gi) || [];
+    for (let i = 0; i < links.length && !titles.length; i++) {
+      const href = (links[i].match(/href=["']([^"']+)["']/i) || [])[1];
+      if (!href) continue;
+      const feedUrl = /^https?:/i.test(href) ? href : (href.indexOf('//') === 0 ? 'https:' + href : url.replace(/^(https?:\/\/[^\/]+).*$/i, '$1') + (href[0] === '/' ? '' : '/') + href);
+      try { titles = feedTitles_(UrlFetchApp.fetch(decodeHtml_(feedUrl), opts).getContentText()); } catch (err) {}
+    }
+  }
+  if (!titles.length) {
+    const host = url.replace(/^https?:\/\//i, '').replace(/\/.*$/, '');
+    const gn = 'https://news.google.com/rss/search?q=' + encodeURIComponent('site:' + host + ' when:2d') + '&hl=pt-BR&gl=BR&ceid=BR:pt-419';
+    // o Google Notícias termina cada título com " - Nome do site"
+    titles = feedTitles_(UrlFetchApp.fetch(gn, opts).getContentText()).map(t => t.replace(/\s+-\s+[^-]+$/, ''));
+  }
+  const seen = {};
+  return titles.filter(t => t && !seen[t] && (seen[t] = true));
+}
+
+function feedTitles_(xml) {
+  const blocks = xml.match(/<(item|entry)[\s>][\s\S]*?<\/(item|entry)>/gi) || [];
+  return blocks.map(b => {
+    const m = b.match(/<title[^>]*>([\s\S]*?)<\/title>/i);
+    if (!m) return '';
+    const t = m[1].replace(/^\s*<!\[CDATA\[([\s\S]*?)\]\]>\s*$/, '$1');
+    return decodeHtml_(t.replace(/<[^>]+>/g, '')).replace(/\s+/g, ' ').trim();
+  }).filter(Boolean);
+}
+
+function decodeHtml_(s) {
+  return String(s)
+    .replace(/&#x([0-9a-f]+);/gi, (m, h) => String.fromCharCode(parseInt(h, 16)))
+    .replace(/&#(\d+);/g, (m, d) => String.fromCharCode(parseInt(d, 10)))
+    .replace(/&quot;/g, '"').replace(/&apos;|&#39;/g, "'").replace(/&lt;/g, '<').replace(/&gt;/g, '>')
+    .replace(/&nbsp;/g, ' ').replace(/&amp;/g, '&');
+}
+
+// "https://www.exemplo.com.br/feed" -> "exemplo"
+function newsSourceName_(site) {
+  const host = String(site).replace(/^https?:\/\//i, '').replace(/\/.*$/, '').replace(/^www\./i, '');
+  return host.split('.')[0];
 }
 
 // ---------------- utilitários ----------------
