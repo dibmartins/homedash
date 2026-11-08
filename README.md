@@ -129,7 +129,7 @@ Fotos em pé aparecem em dupla, como duas Polaroids lado a lado, com o mês e o 
 
 Os vídeos são baixados por inteiro (na versão 1080p do Google Fotos, quando existe) enquanto o item anterior está na tela, e só aparecem quando estão prontos, para não travar.
 
-Os vídeos do álbum tocam sozinhos, sem som, no fundo, e a próxima foto entra quando o vídeo acaba (no máximo 2 minutos por vídeo). No Chromecast sem Google TV, que é mais fraco, o vídeo aparece como foto (o primeiro quadro).
+Os vídeos do álbum tocam sozinhos, sem som, no fundo (no app de Android TV, pelo player do próprio Android, que é mais leve), e a próxima foto entra quando o vídeo acaba (no máximo 2 minutos por vídeo). No Chromecast sem Google TV, que é mais fraco, o vídeo aparece como foto (o primeiro quadro).
 
 ## Segurança
 

@@ -13,6 +13,7 @@ import android.webkit.WebResourceError
 import android.webkit.WebResourceRequest
 import android.webkit.WebView
 import android.webkit.WebViewClient
+import android.widget.FrameLayout
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.view.WindowCompat
@@ -29,6 +30,7 @@ class MainActivity : AppCompatActivity() {
     private val handler = Handler(Looper.getMainLooper())
     private var loadedUrl: String? = null
     private val retry = Runnable { reload() }
+    private lateinit var nativeVideo: NativeVideo
 
     @SuppressLint("SetJavaScriptEnabled")
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -37,7 +39,8 @@ class MainActivity : AppCompatActivity() {
         window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
 
         web = WebView(this).apply {
-            setBackgroundColor(Color.parseColor("#11151C"))
+            // transparente: o vídeo nativo aparece por trás da página
+            setBackgroundColor(Color.TRANSPARENT)
             isFocusable = false
             settings.javaScriptEnabled = true
             settings.domStorageEnabled = true
@@ -51,7 +54,12 @@ class MainActivity : AppCompatActivity() {
                 }
             }
         }
-        setContentView(web)
+        nativeVideo = NativeVideo(this, web)
+        web.addJavascriptInterface(nativeVideo, "HomeDashTV")
+        val root = FrameLayout(this).apply { setBackgroundColor(Color.parseColor("#11151C")) }
+        root.addView(nativeVideo.box, FrameLayout.LayoutParams(FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.MATCH_PARENT))
+        root.addView(web, FrameLayout.LayoutParams(FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.MATCH_PARENT))
+        setContentView(root)
         hideSystemBars()
 
         if (!prefs.isConfigured) {
@@ -71,17 +79,20 @@ class MainActivity : AppCompatActivity() {
     }
 
     override fun onPause() {
+        nativeVideo.stop()
         web.onPause()
         super.onPause()
     }
 
     override fun onDestroy() {
         handler.removeCallbacksAndMessages(null)
+        nativeVideo.release()
         web.destroy()
         super.onDestroy()
     }
 
     private fun reload() {
+        nativeVideo.stop()
         loadedUrl = prefs.dashboardUrl()
         web.loadUrl(loadedUrl!!)
     }
