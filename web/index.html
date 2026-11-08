@@ -149,8 +149,9 @@
   .hidden { display: none !important; }
 
   /* versículo do dia: na base da foto, em letra manuscrita */
-  #verse { position: fixed; left: 45vw; right: 0; bottom: 0; padding: 12vh 3vw 3vh; text-align: center; z-index: 1; pointer-events: none;
-    background: linear-gradient(0deg, rgba(8,10,14,0.85), rgba(8,10,14,0.6) 55%, rgba(8,10,14,0)); }
+  /* a base da foto (ou vídeo) se funde no fundo escuro, como o lado que encosta no painel, e o versículo fica sobre ele */
+  #verse { position: fixed; left: 45vw; right: 0; bottom: 0; padding: 18vh 3vw 3vh; text-align: center; z-index: 1; pointer-events: none;
+    background: linear-gradient(0deg, var(--bg) 0%, var(--bg) 42%, rgba(17,21,28,0.75) 58%, rgba(17,21,28,0.3) 76%, rgba(17,21,28,0) 100%); }
   body.has-news #verse { bottom: 6vh; }
   .lite body.has-news #verse { bottom: 8.8vh; }
   #verse .vt { font: 400 2.7vw/1.12 "Great Vibes", "Segoe Script", cursive; color: #fbf3df; text-shadow: 0 0.2vw 0.9vw rgba(0,0,0,0.9); }
