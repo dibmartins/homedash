@@ -220,23 +220,22 @@ function getMenu_(sheet) {
 function getPhotos_(cfg) {
   const cache = CacheService.getScriptCache();
   if (cfg.album) {
-    const ck = 'album-v2-' + Utilities.base64Encode(cfg.album).slice(0, 200);
+    const ck = 'album-v3-' + Utilities.base64Encode(cfg.album).slice(0, 200);
     const hit = cache.get(ck);
     if (hit) return JSON.parse(hit);
     // Lê o álbum compartilhado (link "photos.app.goo.gl/..."). Não é uma API oficial:
     // se o Google mudar a página, use uma pasta do Drive.
     const html = UrlFetchApp.fetch(cfg.album, { followRedirects: true, muteHttpExceptions: true }).getContentText();
-    const re = /\["(https:\/\/lh3\.googleusercontent\.com\/pw\/[^"]+)",\s*(\d+),\s*(\d+)/g;
-    const seen = {}, urls = [];
-    let m;
-    while ((m = re.exec(html)) !== null) {
-      if (seen[m[1]]) continue;
-      seen[m[1]] = true;
-      urls.push(m[1]);
-    }
-    const videos = videoSet_(urls);
-    // o painel troca o sufixo pelo tamanho real da tela; vídeos usam "=dv" (o arquivo do vídeo)
-    const out = urls.map(u => videos[u] ? { url: u + '=w1920-h1080', video: u + '=dv' } : { url: u + '=w1920-h1080' });
+    const items = albumItems_(html);
+    const videos = videoSet_(items.map(it => it.url));
+    // o painel troca o sufixo pelo tamanho real da tela; vídeos usam "=dv" (o arquivo do vídeo).
+    // w/h dizem se a foto é em pé (o painel junta duas fotos em pé); t é a data, quando o álbum informa.
+    const out = items.map(it => {
+      const o = { url: it.url + '=w1920-h1080', w: it.w, h: it.h };
+      if (it.t) o.t = it.t;
+      if (videos[it.url]) o.video = it.url + '=dv';
+      return o;
+    });
     try { cache.put(ck, JSON.stringify(out), 6 * 3600); } catch (err) {}
     return out;
   }
@@ -250,6 +249,23 @@ function getPhotos_(cfg) {
     return out;
   }
   return [];
+}
+
+// Itens do álbum compartilhado: endereço, largura, altura e, se aparecer logo depois, a data (ms).
+function albumItems_(html) {
+  const re = /\["(https:\/\/lh3\.googleusercontent\.com\/pw\/[^"]+)",\s*(\d+),\s*(\d+)/g;
+  const dateRe = /^(?:[^\[\]]|\[[^\[\]]*\])*\]\s*,\s*"?(1\d{12})\b/;
+  const seen = {}, out = [];
+  let m;
+  while ((m = re.exec(html)) !== null) {
+    if (seen[m[1]]) continue;
+    seen[m[1]] = true;
+    const it = { url: m[1], w: +m[2], h: +m[3] };
+    const d = dateRe.exec(html.substr(re.lastIndex, 600));
+    if (d) it.t = +d[1];
+    out.push(it);
+  }
+  return out;
 }
 
 function allowedPhotoIds_() {
@@ -504,12 +520,10 @@ function testeVideos() {
   const cfg = PROFILES.familia.photos || {};
   if (!cfg.album) return Logger.log('nenhum álbum configurado no perfil familia');
   const html = UrlFetchApp.fetch(cfg.album, { followRedirects: true, muteHttpExceptions: true }).getContentText();
-  const re = /\["(https:\/\/lh3\.googleusercontent\.com\/pw\/[^"]+)",\s*(\d+),\s*(\d+)/g;
-  const urls = [];
-  let m;
-  while ((m = re.exec(html)) !== null) if (urls.indexOf(m[1]) === -1) urls.push(m[1]);
+  const items = albumItems_(html), urls = items.map(it => it.url);
   const videos = videoSet_(urls);
-  Logger.log('itens no álbum: ' + urls.length + ' · vídeos encontrados: ' + Object.keys(videos).length);
+  Logger.log('itens no álbum: ' + urls.length + ' · vídeos encontrados: ' + Object.keys(videos).length +
+    ' · fotos em pé: ' + items.filter(it => it.h > it.w * 1.1).length + ' · com data: ' + items.filter(it => it.t).length);
   urls.slice(0, 15).forEach(u => {
     const r = UrlFetchApp.fetch(u + '=dv', { headers: { Range: 'bytes=0-0' }, followRedirects: true, muteHttpExceptions: true });
     const h = r.getHeaders();
