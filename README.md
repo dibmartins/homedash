@@ -1,6 +1,6 @@
 # homedash · Painel da Família
 
-Um painel para TV com relógio, tempo, agenda e cardápio do dia e fotos.
+Um painel para TV com relógio, tempo, agenda e cardápio do dia, versículo e evangelho do dia e fotos.
 Cada pessoa pode ter o seu painel (`pessoa=pessoa1`, `pessoa2`...) e há um painel geral (`pessoa=familia`).
 
 ![Prévia do painel com dados de exemplo](docs/previa.png)
@@ -120,6 +120,12 @@ No perfil, preencha `news` com os sites, por exemplo `news: ['g1.globo.com', { s
 ## 8. Lembrete do lixo (opcional)
 
 No perfil, preencha `lixo` com os dias e a hora da coleta, por exemplo `lixo: { dias: ['segunda', 'sexta'], hora: '07:30' }`. Na véspera, a partir das 17h, aparece um aviso acima do card ("Amanhã cedo tem coleta de lixo"); no dia da coleta, da meia-noite até 30 minutos depois da hora, o aviso fica em destaque. Para mudar esses horários, use `vespera: '18:00'` e `ate: '08:30'`. Depois de mudar o script, publique uma nova versão.
+
+## 9. Versículo e evangelho do dia
+
+Na base da foto aparece um versículo da Bíblia por dia, o mesmo em todos os perfis. Ele troca à meia-noite. A lista fica em `web/versiculos.js`, em traduções de domínio público. Para acrescentar um versículo, inclua uma linha `["texto", "referência"]`.
+
+O evangelho do dia vem de um serviço gratuito de liturgia diária ([liturgia-diaria](https://github.com/Dancrf/liturgia-diaria)). O script busca o texto e guarda por 6 horas. O card do evangelho reveza com a agenda e o cardápio a cada foto nova, e a letra diminui até o texto inteiro caber. Para conferir, execute `testeEvangelho` no editor do Apps Script. Para desligar o evangelho, deixe `GOSPEL_API` vazio. Se o serviço estiver fora do ar, o card não aparece e o resto do painel continua normal.
 
 ## Fotos e vídeos do álbum
 
