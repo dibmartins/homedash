@@ -76,6 +76,7 @@
   #weather { margin-top: 1vh; display: flex; align-items: baseline; gap: 0.9vw; flex-wrap: wrap; }
   #weather .now { font-size: 1.9vw; font-weight: 600; line-height: 1.2; }
   #weather .range { font-size: 1.3vw; color: #d5dbe5; }
+  #weather .wi { width: 1.25em; height: 1.25em; vertical-align: -0.25em; overflow: visible; }
   #weather .days { flex-basis: 100%; display: flex; gap: 1.3vw; font-size: 1.15vw; color: #93a0b4; margin-top: 0.3vh; }
 
   /* os cards ficam sobre o preto: sem desfoque, que pesa no processador da TV */
@@ -150,7 +151,7 @@
   #trash.today { background: var(--accent); border-color: var(--accent); color: #1b1607; text-shadow: none; }
   #trash.today svg { stroke: #1b1607; }
   #trash.today .t2 { color: #3a2f12; }
-  #status { position: fixed; right: 1vw; bottom: 0.6vh; font-size: 0.85vw; color: rgba(255, 255, 255, 0.45); }
+  #status { position: fixed; right: 1vw; top: 0.8vh; font-size: 0.85vw; color: rgba(255, 255, 255, 0.45); }
 
   /* barra de notícias no rodapé */
   #news { position: fixed; left: 0; right: 0; bottom: 0; height: 6vh; display: flex; align-items: stretch;
@@ -163,7 +164,9 @@
   #news-track span { font-size: 1.45vw; }
   #news-track .src { color: var(--accent); font-weight: 700; font-size: 1.05vw; text-transform: uppercase; letter-spacing: 0.08em; margin-right: 0.7vw; }
   #news-track .sep { color: rgba(255, 255, 255, 0.35); margin: 0 1.6vw; }
-  body.has-news #status { bottom: calc(6vh + 0.4vh); }
+  /* Chromecast: a TV corta um pouco a base da imagem (overscan); a barra sobe e o fundo dela desce até a borda */
+  .lite #news { bottom: 2.8vh; box-shadow: 0 2.8vh 0 #0b0e13; }
+  .lite body.has-news #left { bottom: calc(8.8vh + 2.5vh); }
 </style>
 </head>
 <body>
@@ -182,7 +185,6 @@
       <div class="tabs" id="tabs"></div>
       <div class="pane" id="agenda" data-tab="Agenda"><div id="events"></div></div>
       <div class="pane" id="reminders-card" data-tab="Lembretes"><div id="reminders"></div></div>
-      <div class="pane two-cols" id="shopping-card" data-tab="Compras"><div id="shopping"></div></div>
       <div class="pane" id="menu-card" data-tab="Cardápio"><div id="menu"></div></div>
     </div>
 
@@ -710,12 +712,10 @@
     if (lastData) {
       if (pane.id === "agenda") renderEvents(lastData.events || []);
       if (pane.id === "reminders-card") $("reminders").innerHTML = renderItems(lastData.reminders, 8, true);
-      if (pane.id === "shopping-card" && lastData.shopping) $("shopping").innerHTML = renderItems(lastData.shopping, 12, false);
       if (pane.id === "menu-card") renderMenu(lastData.menu);
     }
     if (pane.id === "agenda") fit(pane, $("events"), ".event", "eventos");
     if (pane.id === "reminders-card") fit(pane, $("reminders").querySelector("ul"), "li", "itens");
-    if (pane.id === "shopping-card") fit(pane, $("shopping").querySelector("ul"), "li", "itens");
     if (pane.id === "menu-card") fit(pane, $("menu"), ".menu-row", "dias");
   }
   function fitAll() { fitPane(document.querySelector(".pane.on")); }
@@ -836,16 +836,34 @@
   $("news-track").addEventListener("transitionend", runNews);
 
   // ---------- tempo (Open-Meteo, sem chave) ----------
+  // Ícones desenhados (SVG) em vez de emojis: o Chromecast antigo não tem fonte de emoji.
+  var SUN = '<circle cx="12" cy="12" r="4.5" fill="#ffc94d"/><g stroke="#ffc94d" stroke-width="1.8" stroke-linecap="round">' +
+    '<path d="M12 2.5v2.2M12 19.3v2.2M2.5 12h2.2M19.3 12h2.2M5.3 5.3l1.6 1.6M17.1 17.1l1.6 1.6M5.3 18.7l1.6-1.6M17.1 6.9l1.6-1.6"/></g>';
+  var CLOUD = function (c) { return '<path d="M7 19h10.5a4 4 0 0 0 .4-8 5.5 5.5 0 0 0-10.6-1.2A4.6 4.6 0 0 0 7 19z" fill="' + (c || "#dfe6ef") + '"/>'; };
+  var DROPS = '<g stroke="#6cb6ff" stroke-width="1.8" stroke-linecap="round"><path d="M9 20.5l-1 2.5M13 20.5l-1 2.5M17 20.5l-1 2.5"/></g>';
+  var ICONS = {
+    sol: SUN,
+    poucas: '<g transform="translate(-3 -3) scale(.75)">' + SUN + '</g><g transform="translate(2 1) scale(.9)">' + CLOUD() + '</g>',
+    nublado: CLOUD(),
+    neblina: '<g stroke="#c9d1dc" stroke-width="1.8" stroke-linecap="round"><path d="M4 9h16M3 13h18M5 17h14"/></g>',
+    garoa: '<g transform="translate(0 -3)">' + CLOUD() + '</g><g stroke="#6cb6ff" stroke-width="1.6" stroke-linecap="round"><path d="M10 18.5v1.5M15 18.5v1.5"/></g>',
+    chuva: '<g transform="translate(0 -3)">' + CLOUD("#b9c4d2") + '</g>' + DROPS,
+    neve: '<g transform="translate(0 -3)">' + CLOUD() + '</g><g fill="#fff"><circle cx="9" cy="20" r="1.2"/><circle cx="13" cy="21.5" r="1.2"/><circle cx="17" cy="20" r="1.2"/></g>',
+    raio: '<g transform="translate(0 -3)">' + CLOUD("#9aa6b6") + '</g><path d="M13 15l-3 5h3l-1.5 4 4.5-6h-3l1.5-3z" fill="#ffc94d"/>'
+  };
+  function icon(name) {
+    return '<svg class="wi" viewBox="0 0 24 24" aria-hidden="true">' + ICONS[name] + "</svg>";
+  }
   function wmo(code) {
-    if (code === 0) return ["☀️", "céu limpo"];
-    if (code <= 2) return ["🌤️", "poucas nuvens"];
-    if (code === 3) return ["☁️", "nublado"];
-    if (code <= 48) return ["🌫️", "neblina"];
-    if (code <= 57) return ["🌦️", "garoa"];
-    if (code <= 67) return ["🌧️", "chuva"];
-    if (code <= 77) return ["❄️", "neve"];
-    if (code <= 82) return ["🌧️", "pancadas"];
-    return ["⛈️", "tempestade"];
+    if (code === 0) return [icon("sol"), "céu limpo"];
+    if (code <= 2) return [icon("poucas"), "poucas nuvens"];
+    if (code === 3) return [icon("nublado"), "nublado"];
+    if (code <= 48) return [icon("neblina"), "neblina"];
+    if (code <= 57) return [icon("garoa"), "garoa"];
+    if (code <= 67) return [icon("chuva"), "chuva"];
+    if (code <= 77) return [icon("neve"), "neve"];
+    if (code <= 82) return [icon("chuva"), "pancadas"];
+    return [icon("raio"), "tempestade"];
   }
   function loadWeather() {
     if (!CONFIG.lat || !CONFIG.lon) { $("weather").innerHTML = ""; return; }
@@ -892,8 +910,6 @@
     tick();
     renderEvents(data.events || []);
     $("reminders").innerHTML = renderItems(data.reminders, 8, true);
-    $("shopping").innerHTML = renderItems(data.shopping, 12, false);
-    if (!data.shopping) $("shopping").innerHTML = "";
     renderMenu(data.menu);
     setPhotos(data.photos || []);
     setSpotify(data.spotify);
@@ -902,8 +918,9 @@
     if (data.spotifyDemo) { np = Object.assign({ at: Date.now() }, data.spotifyDemo); renderNowPlaying(); }
     refreshPanel();
     lastOk = Date.now();
-    $("status").textContent = (data.demo ? "dados de exemplo · " : "") + "atualizado às " + hm(new Date()) +
-      (data.warnings && data.warnings.length ? " · aviso: " + data.warnings.join(" | ") : "");
+    // só aparece algo quando há um problema (ou nos dados de exemplo)
+    $("status").textContent = (data.warnings && data.warnings.length ? "aviso: " + data.warnings.join(" | ") : "") ||
+      (data.demo ? "dados de exemplo" : "");
   }
 
   // ---------- dados de exemplo (sem "api") ----------
@@ -939,8 +956,6 @@
       events: events.filter(function (e) { return p === "familia" || e.who === p || e.who === "familia"; })
                     .map(function (e) { e.color = C[e.who]; return e; }),
       reminders: reminders[p],
-      shopping: p === "pessoa3" ? null : [{ title: "Leite" }, { title: "Pão integral" }, { title: "Bananas" }, { title: "Café" },
-                 { title: "Detergente" }, { title: "Ovos" }, { title: "Queijo" }, { title: "Arroz" }],
       menu: [
         { weekday: 0, almoco: "Churrasco", jantar: "Sopa de legumes" },
         { weekday: 1, almoco: "Frango grelhado", jantar: "Omelete" },

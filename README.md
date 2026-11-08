@@ -1,6 +1,6 @@
 # homedash · Painel da Família
 
-Um painel para TV com relógio, tempo, agenda, lembretes, lista de compras, cardápio da semana e fotos.
+Um painel para TV com relógio, tempo, agenda, lembretes, cardápio da semana e fotos.
 Cada pessoa pode ter o seu painel (`pessoa=pessoa1`, `pessoa2`...) e há um painel geral (`pessoa=familia`).
 
 ![Prévia do painel com dados de exemplo](docs/previa.png)
@@ -20,7 +20,7 @@ Crie uma planilha no Google Sheets chamada "Painel da Família" e compartilhe co
 
 | Aba | Colunas |
 |---|---|
-| Compras | Item · Comprado (caixa de seleção) |
+| Compras (opcional, o painel não mostra mais) | Item · Comprado (caixa de seleção) |
 | Cardápio | Dia (seg, ter, qua, qui, sex, sáb, dom) · Almoço · Jantar |
 | Lembretes | Lembrete · Pessoa (o nome definido em `sheetReminders` ou Todos) · Data · Feito (caixa de seleção) |
 
