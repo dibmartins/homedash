@@ -35,12 +35,14 @@
   body { font-family: "Google Sans", Roboto, "Segoe UI", system-ui, sans-serif; font-size: 1.5vw; }
 
   /* coluna da esquerda sobre o preto; a foto fica à direita (margem de segurança para overscan) */
-  #left { position: fixed; left: 2.8vw; top: 3.5vh; bottom: 3vh; width: 33vw; display: flex; flex-direction: column; gap: 1.8vh; }
+  #left { position: fixed; left: 2.8vw; top: 3.5vh; bottom: 3vh; width: 42.2vw; display: flex; flex-direction: column; gap: 1.8vh; }
   body.has-news #left { bottom: calc(6vh + 2.5vh); }
-  header { flex: none; }
+  /* relógio e data à esquerda, tempo no canto direito */
+  header { flex: none; display: flex; justify-content: space-between; align-items: flex-start; gap: 1.5vw; }
+  header .when { flex: none; white-space: nowrap; }
 
   /* foto de fundo em tela cheia */
-  #bg { position: fixed; top: 0; bottom: 0; right: 0; left: 28vw; z-index: -2; background: var(--bg); }
+  #bg { position: fixed; top: 0; bottom: 0; right: 0; left: 45vw; z-index: -2; background: var(--bg); }
   #bg .layer, #bg video { position: absolute; inset: 0; width: 100%; height: 100%; opacity: 0; transition: opacity 2s ease; }
   #bg .layer.show, #bg video.show { opacity: 1; }
   #bg video { object-fit: contain; background: #000; }
@@ -58,40 +60,41 @@
   #bg.cover .layer .fill { display: none; }
   /* preto à esquerda, com degradê até a foto */
   #shade, #shade2 { position: fixed; inset: 0; z-index: -1; pointer-events: none; transition: opacity 2s ease; }
-  #shade { background: linear-gradient(90deg, var(--bg) 0%, var(--bg) 34%, rgba(17,21,28,0.75) 42%, rgba(17,21,28,0.3) 51%, rgba(17,21,28,0) 60%); }
+  #shade { background: linear-gradient(90deg, var(--bg) 0%, var(--bg) 45%, rgba(17,21,28,0.75) 51%, rgba(17,21,28,0.3) 58%, rgba(17,21,28,0) 65%); }
   /* com duas fotos o degradê é mais curto, para não escurecer a primeira */
-  #shade2 { opacity: 0; background: linear-gradient(90deg, var(--bg) 0, var(--bg) 31vw, rgba(17,21,28,0) 37vw); }
+  #shade2 { opacity: 0; background: linear-gradient(90deg, var(--bg) 0, var(--bg) 45vw, rgba(17,21,28,0) 48vw); }
   body.duo #shade { opacity: 0; }
   body.duo #shade2 { opacity: 1; }
   /* fotos em pé: duas, lado a lado, em molduras de Polaroid levemente tortas */
   #bg .duo { background: radial-gradient(ellipse at 60% 50%, #3a3026, #14110e 75%); }
-  #bg .duo figure { position: absolute; margin: 0; width: 25vw; padding: 1vw 1vw 5vw; background: #fbfaf6;
+  #bg .duo figure { position: absolute; margin: 0; width: 21vw; padding: 0.9vw 0.9vw 4.4vw; background: #fbfaf6;
     box-shadow: 0 1.2vw 2.5vw rgba(0,0,0,0.8); }
   #bg .duo figure img { position: static; display: block; width: 100%; height: auto; aspect-ratio: 3 / 4; object-fit: cover; background: #ddd; }
-  #bg .duo figcaption { position: absolute; left: 0; right: 0; bottom: 1.3vw; text-align: center; color: #444;
-    font: 500 2.2vw/1 Caveat, "Segoe Script", "Comic Sans MS", cursive; }
+  #bg .duo figcaption { position: absolute; left: 0; right: 0; bottom: 1.1vw; text-align: center; color: #444;
+    font: 500 1.9vw/1 Caveat, "Segoe Script", "Comic Sans MS", cursive; }
   .hello { font-size: 1.6vw; color: var(--accent); font-weight: 600; margin-bottom: 0.6vh; }
   #clock { font-size: 5vw; font-weight: 500; line-height: 1; letter-spacing: -0.02em; }
   #date { font-size: 1.6vw; color: #d5dbe5; margin-top: 0.6vh; }
-  #weather { margin-top: 1vh; display: flex; align-items: baseline; gap: 0.9vw; flex-wrap: wrap; }
-  #weather .now { font-size: 1.9vw; font-weight: 600; line-height: 1.2; }
-  #weather .range { font-size: 1.3vw; color: #d5dbe5; }
+  #weather { margin-top: 1.2vh; display: flex; flex-direction: column; align-items: flex-end; gap: 0.4vh; text-align: right; min-width: 0; }
+  #weather .now { font-size: 3.2vw; font-weight: 600; line-height: 1; white-space: nowrap; }
+  #weather .range { font-size: 1.2vw; color: #d5dbe5; line-height: 1.3; }
+  #weather .range div { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   #weather .wi { width: 1.25em; height: 1.25em; vertical-align: -0.25em; overflow: visible; }
-  #weather .days { flex-basis: 100%; display: flex; gap: 1.3vw; font-size: 1.15vw; color: #93a0b4; margin-top: 0.3vh; }
+  #weather .days { display: flex; gap: 1vw; font-size: 1.1vw; color: #93a0b4; justify-content: flex-end; white-space: nowrap; }
 
   /* os cards ficam sobre o preto: sem desfoque, que pesa no processador da TV */
   .card { background: rgba(255, 255, 255, 0.045); border: 1px solid rgba(255, 255, 255, 0.07); border-radius: 1.1vw; padding: 2vh 1.5vw; overflow: hidden; min-height: 0; }
 
-  /* card único com abas: mostra uma de cada vez e troca junto com a foto/vídeo do fundo */
-  #panel { flex: 1 1 0; display: flex; flex-direction: column; }
-  .tabs { display: flex; gap: 1.6vw; margin-bottom: 1.2vh; flex: none; }
+  /* agenda e cardápio de hoje, lado a lado; nada é cortado: se a agenda não couber, vira páginas */
+  #panel { flex: 1 1 0; display: flex; gap: 1.2vw; min-height: 0; }
+  #agenda { flex: 1.25 1 0; position: relative; }
+  #menu-card { flex: 1 1 0; }
+  .lbl { font-size: 1.05vw; text-transform: uppercase; letter-spacing: 0.12em; font-weight: 700; color: var(--accent); margin-bottom: 1vh; }
+  .pg { position: absolute; right: 1.5vw; top: 2vh; font-size: 1vw; color: #93a0b4; letter-spacing: 0.1em; }
   #spotify-card { padding: 1.4vh 1.3vw; }
   #spotify-card h2 { margin-bottom: 0.3vh; }
   .np-bar { margin-top: 0.8vh !important; }
-  .tabs span { font-size: 1.05vw; text-transform: uppercase; letter-spacing: 0.12em; font-weight: 700; color: #5d6778; padding-bottom: 0.5vh; border-bottom: 0.25vh solid transparent; }
-  .tabs span.on { color: var(--accent); border-bottom-color: var(--accent); }
-  .pane { flex: 1 1 0; min-height: 0; overflow: hidden; display: none; }
-  .pane.on { display: block; animation: paneIn 0.6s ease; }
+  #events.turn { animation: paneIn 0.6s ease; }
   @keyframes paneIn { from { opacity: 0; } to { opacity: 1; } }
 
   /* Spotify: tocando agora */
@@ -108,14 +111,11 @@
   h2 { font-size: 1.15vw; text-transform: uppercase; letter-spacing: 0.12em; color: var(--accent); font-weight: 600; margin-bottom: 1vh; }
 
   /* agenda */
-  .day { margin-bottom: 1vh; }
-  .day-title { font-size: 1.35vw; color: #b9c3d3; font-weight: 600; margin-bottom: 0.4vh; }
-  .day.is-today .day-title { color: var(--today); }
-  .event { display: flex; align-items: baseline; gap: 0.8vw; padding: 0.6vh 0; border-bottom: 1px solid var(--line); }
-  .event:last-child { border-bottom: 0; }
+  .day-title { font-size: 1.35vw; color: #b9c3d3; font-weight: 600; margin: 0.8vh 0 0.3vh; }
+  .event { display: flex; align-items: baseline; gap: 0.8vw; padding: 0.45vh 0; border-bottom: 1px solid var(--line); }
   .event .dot { width: 0.75vw; height: 0.75vw; border-radius: 50%; flex: none; }
-  .event .time { width: 5.4vw; flex: none; color: #b9c3d3; font-variant-numeric: tabular-nums; font-size: 1.35vw; }
-  .event .title { flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-size: 1.7vw; }
+  .event .time { width: 5.4vw; flex: none; white-space: nowrap; color: #b9c3d3; font-variant-numeric: tabular-nums; font-size: 1.25vw; }
+  .event .title { flex: 1; min-width: 0; font-size: 1.5vw; line-height: 1.2; overflow-wrap: break-word; }
   .event.past { opacity: 0.55; }
 
 
@@ -132,13 +132,9 @@
   .empty { color: var(--muted); font-style: italic; }
 
   /* cardápio */
-  .menu-row { display: flex; gap: 0.8vw; padding: 0.9vh 0; border-bottom: 1px solid var(--line); align-items: baseline; }
-  .menu-row:last-child { border-bottom: 0; }
-  .menu-row .d { width: 3.6vw; flex: none; color: var(--muted); font-weight: 600; font-size: 1.25vw; text-transform: capitalize; }
-  .menu-row.is-today .d { color: var(--today); }
-  .menu-row .m { flex: 1; min-width: 0; font-size: 1.55vw; }
-  .menu-row .m div { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-  .menu-row .m small { color: var(--muted); font-size: 1.1vw; display: inline-block; width: 4.6vw; }
+  .meal + .meal { margin-top: 2vh; }
+  .meal span { display: block; color: #93a0b4; font-weight: 700; text-transform: uppercase; letter-spacing: 0.1em; font-size: 1vw; margin-bottom: 0.4vh; }
+  .meal b { display: block; font-weight: 500; font-size: 1.6vw; line-height: 1.25; overflow-wrap: break-word; }
 
   .hidden { display: none !important; }
 
@@ -175,17 +171,17 @@
   <div id="shade2"></div>
   <div id="left">
     <header>
-      <div class="hello" id="hello"></div>
-      <div id="clock">--:--</div>
-      <div id="date"></div>
+      <div class="when">
+        <div class="hello" id="hello"></div>
+        <div id="clock">--:--</div>
+        <div id="date"></div>
+      </div>
       <div id="weather"></div>
     </header>
 
-    <div class="card" id="panel">
-      <div class="tabs" id="tabs"></div>
-      <div class="pane" id="agenda" data-tab="Agenda"><div id="events"></div></div>
-      <div class="pane" id="reminders-card" data-tab="Lembretes"><div id="reminders"></div></div>
-      <div class="pane" id="menu-card" data-tab="Cardápio"><div id="menu"></div></div>
+    <div id="panel">
+      <div class="card" id="agenda"><div class="lbl">Agenda de hoje</div><span class="pg" id="agenda-pg"></span><div id="events"></div></div>
+      <div class="card hidden" id="menu-card"><div class="lbl">Cardápio de hoje</div><div id="menu"></div></div>
     </div>
 
     <div class="card hidden" id="spotify-card" style="flex: none">
@@ -310,82 +306,49 @@
   }
 
   // ---------- agenda ----------
-  function dayLabel(d) {
-    var diff = Math.round((startOfDay(d) - startOfDay(new Date())) / 86400000);
-    if (diff === 0) return "Hoje";
-    if (diff === 1) return "Amanhã";
-    return WEEK[d.getDay()] + ", " + d.getDate() + "/" + pad(d.getMonth() + 1);
-  }
-
-  function renderEvents(events) {
-    var now = new Date(), today = startOfDay(now), groups = [], i;
-    for (i = 0; i < CONFIG.days; i++) {
-      var d = new Date(today); d.setDate(d.getDate() + i);
-      groups.push({ date: d, items: [] });
-    }
-    events.forEach(function (ev) {
+  // Só o dia de hoje. Quando não resta mais nada hoje (ou não havia nada), mostra também amanhã.
+  // Sem "+ N eventos": o que não couber vai para a próxima página (ver layoutAgenda).
+  function eventsOn(events, day) {
+    var end = new Date(day); end.setDate(end.getDate() + 1);
+    return events.filter(function (ev) {
       var s = new Date(ev.start), e = new Date(ev.end || ev.start);
-      groups.forEach(function (g) {
-        var dEnd = new Date(g.date); dEnd.setDate(dEnd.getDate() + 1);
-        if ((s < dEnd && e > g.date) || (+s === +e && s >= g.date && s < dEnd)) g.items.push(ev);
-      });
+      return (s < end && e > day) || (+s === +e && s >= day && s < end);
+    }).sort(function (a, b) {
+      if (!!a.allDay !== !!b.allDay) return a.allDay ? -1 : 1;
+      return new Date(a.start) - new Date(b.start);
     });
-    var html = "";
-    groups.forEach(function (g, idx) {
-      if (idx > 1 && !g.items.length) return; // esconde dias vazios depois de amanhã
-      g.items.sort(function (a, b) {
-        if (!!a.allDay !== !!b.allDay) return a.allDay ? -1 : 1;
-        return new Date(a.start) - new Date(b.start);
-      });
-      html += '<div class="day' + (idx === 0 ? " is-today" : "") + '"><div class="day-title">' + esc(dayLabel(g.date)) + "</div>";
-      if (!g.items.length) html += '<div class="empty">Nada marcado</div>';
-      g.items.forEach(function (ev) {
-        var past = !ev.allDay && new Date(ev.end || ev.start) < now;
-        html += '<div class="event' + (past ? " past" : "") + '"><span class="dot" style="background:' + esc(ev.color || "#7aa2f7") + '"></span>' +
-                '<span class="time">' + (ev.allDay ? "dia todo" : hm(new Date(ev.start))) + "</span>" +
-                '<span class="title">' + esc(ev.title) + "</span></div>";
-      });
-      html += "</div>";
-    });
+  }
+  function eventRow(ev, now) {
+    var past = !ev.allDay && new Date(ev.end || ev.start) < now;
+    return '<div class="event' + (past ? " past" : "") + '"><span class="dot" style="background:' + esc(ev.color || "#7aa2f7") + '"></span>' +
+           '<span class="time">' + (ev.allDay ? "dia todo" : hm(new Date(ev.start))) + "</span>" +
+           '<span class="title">' + esc(ev.title) + "</span></div>";
+  }
+  function renderEvents(events, hidePast) {
+    var now = new Date(), today = startOfDay(now), tomorrow = new Date(today);
+    tomorrow.setDate(tomorrow.getDate() + 1);
+    var list = eventsOn(events, today), html = "";
+    var ahead = list.filter(function (ev) { return ev.allDay || new Date(ev.end || ev.start) >= now; });
+    (hidePast ? ahead : list).forEach(function (ev) { html += eventRow(ev, now); });
+    if (!list.length) html += '<div class="empty">Nada marcado hoje</div>';
+    if (!ahead.length) {
+      var next = eventsOn(events, tomorrow);
+      if (next.length) {
+        html += '<div class="day-title">Amanhã</div>';
+        next.forEach(function (ev) { html += eventRow(ev, now); });
+      }
+    }
     $("events").innerHTML = html;
   }
 
-  // ---------- lembretes e compras ----------
-  function renderItems(items, max, withDue) {
-    if (!items || !items.length) return '<div class="empty">Tudo feito</div>';
-    var today = startOfDay(new Date()), html = "<ul>";
-    items.forEach(function (t) {
-      var due = "", late = false;
-      if (withDue && t.due) {
-        var d = startOfDay(new Date(t.due.slice(0, 10) + "T12:00:00")); // Tasks guarda só a data
-        late = d < today;
-        due = +d === +today ? "hoje" : d.getDate() + "/" + pad(d.getMonth() + 1);
-      }
-      html += '<li class="' + (late ? "late" : "") + '"><span>' + esc(t.title) + "</span>" +
-              (due ? '<span class="due">' + due + "</span>" : "") + "</li>";
-    });
-    return html + "</ul>";
-  }
-
-  // ---------- cardápio ----------
+  // ---------- cardápio de hoje ----------
   function renderMenu(menu) {
-    if (!menu || !menu.length) { $("menu").innerHTML = ""; return; }
-    var todayIdx = new Date().getDay(), html = "";
-    // mostra de hoje em diante, até 7 dias
-    var ordered = [];
-    for (var i = 0; i < 7; i++) {
-      var wd = (todayIdx + i) % 7;
-      var row = menu.filter(function (m) { return m.weekday === wd; })[0];
-      if (row) ordered.push({ wd: wd, row: row, today: i === 0 });
-    }
-    ordered.forEach(function (o) {
-      var parts = [];
-      if (o.row.almoco) parts.push("<small>almoço</small>" + esc(o.row.almoco));
-      if (o.row.jantar) parts.push("<small>jantar</small>" + esc(o.row.jantar));
-      html += '<div class="menu-row' + (o.today ? " is-today" : "") + '"><span class="d">' +
-              (o.today ? "hoje" : WEEK_SHORT[o.wd]) + '</span><span class="m">' + (parts.length ? "<div>" + parts.join("</div><div>") + "</div>" : "—") + "</span></div>";
-    });
+    var wd = new Date().getDay();
+    var row = (menu || []).filter(function (m) { return m.weekday === wd; })[0], html = "";
+    if (row && row.almoco) html += '<div class="meal"><span>Almoço</span><b>' + esc(row.almoco) + "</b></div>";
+    if (row && row.jantar) html += '<div class="meal"><span>Jantar</span><b>' + esc(row.jantar) + "</b></div>";
     $("menu").innerHTML = html;
+    $("menu-card").classList.toggle("hidden", !html);
   }
 
   // ---------- fotos (fundo da tela inteira) ----------
@@ -561,7 +524,8 @@
   // ---------- fotos em pé: duas por vez, como Polaroids ----------
   // true = em pé, false = deitada, null = não sabemos (fotos do Drive e de exemplo: descobre ao carregar)
   function isPortrait(p) { return p && p.w && p.h ? p.h > p.w * 1.1 : null; }
-  function canPair(p) { return !PHOTO_COVER && p && !(p.video && !IS_CAST) && isPortrait(p) !== false; }
+  // vídeos nunca entram na dupla: no modo leve eles aparecem parados, com o ▶ do Google por cima
+  function canPair(p) { return !PHOTO_COVER && p && !p.video && isPortrait(p) !== false; }
   // procura, nos próximos itens da fila, outra foto em pé para fazer par
   function findPartner() {
     for (var k = 1; k <= Math.min(10, photos.length - 1); k++) {
@@ -604,7 +568,7 @@
     var layer = document.createElement("div");
     layer.className = "layer duo";
     var r = function (min, max) { return (min + Math.random() * (max - min)).toFixed(1); };
-    [[a, ia, 12, r(9, 11), -r(2.5, 5)], [b, ib, 39, r(13, 15), r(2, 4)]].forEach(function (x) {
+    [[a, ia, 6, r(14, 16), -r(2.5, 5)], [b, ib, 29, r(18, 20), r(2, 4)]].forEach(function (x) {
       var fig = document.createElement("figure");
       fig.style.left = x[2] + "vw";
       fig.style.top = x[3] + "vh";
@@ -682,43 +646,44 @@
     prefetchNext();
   }
 
-  // ---------- encaixe: nada é cortado no fim dos cards ----------
-  // Remove os últimos itens até o card caber e mostra "+ N ..." no lugar.
-  function fit(card, list, selector, noun) {
-    if (!card || !list) return;
-    // pode rodar mais de uma vez (ex.: o tempo carregou depois): soma com o que já foi escondido
-    var old = list.querySelector(".more"), hidden = old ? +old.getAttribute("data-n") || 0 : 0;
-    if (old) old.remove();
-    var items = list.querySelectorAll(selector), more = null;
-    function addMore() { more = document.createElement(list.tagName === "UL" ? "li" : "div"); more.className = "more"; list.appendChild(more); }
-    if (hidden) { addMore(); more.textContent = "+ " + hidden + " " + noun; }
-    for (var i = items.length - 1; i > 0 && card.scrollHeight > card.clientHeight + 1; i--) {
-      var it = items[i], parent = it.parentNode;
-      parent.removeChild(it);
-      hidden++;
-      // dia da agenda que ficou sem eventos some junto
-      if (parent.classList && parent.classList.contains("day") && !parent.querySelector(selector)) parent.remove();
-      if (!more) addMore();
-      more.textContent = "+ " + hidden + " " + noun;
+  // ---------- agenda em páginas: nada é cortado ----------
+  // Mede as linhas e divide em páginas do tamanho do card. Se não couber em uma página, primeiro
+  // esconde o que já passou; se ainda assim não couber, as páginas trocam junto com a foto do fundo
+  // (sem fotos, a cada 45 s).
+  var lastData = null, agendaPage = 0, agendaPages = 1, pageTimer = null;
+  function paginate() {
+    var card = $("agenda"), list = $("events"), rows = list.children;
+    var avail = card.clientHeight - list.offsetTop - parseFloat(getComputedStyle(card).paddingBottom);
+    var pages = [[]], top = rows.length ? rows[0].offsetTop : 0;
+    for (var i = 0; i < rows.length; i++) {
+      var r = rows[i], cur = pages[pages.length - 1];
+      if (cur.length && r.offsetTop + r.offsetHeight - top > avail) {
+        // um "Amanhã" não fica sozinho no fim da página
+        var carry = cur[cur.length - 1].className === "day-title" && cur.length > 1 ? [cur.pop()] : [];
+        pages.push(cur = carry);
+        top = (carry[0] || r).offsetTop;
+      }
+      cur.push(r);
     }
-    if (more) more.setAttribute("data-n", hidden);
+    return pages;
   }
-  // só dá para medir a aba que está visível; as outras são ajustadas quando aparecem
-  // Redesenha a aba com os dados mais recentes e corta o que não couber; assim também volta a
-  // mostrar mais itens se o espaço aumentar (ex.: o card do Spotify sumiu).
-  var lastData = null;
-  function fitPane(pane) {
-    if (!pane) return;
-    if (lastData) {
-      if (pane.id === "agenda") renderEvents(lastData.events || []);
-      if (pane.id === "reminders-card") $("reminders").innerHTML = renderItems(lastData.reminders, 8, true);
-      if (pane.id === "menu-card") renderMenu(lastData.menu);
+  function layoutAgenda(turn) {
+    if (!lastData) return;
+    var events = lastData.events || [];
+    renderEvents(events);
+    var pages = paginate();
+    if (pages.length > 1) { renderEvents(events, true); pages = paginate(); }
+    agendaPages = pages.length;
+    if (turn) agendaPage++;
+    agendaPage = agendaPage % agendaPages;
+    pages.forEach(function (pg, i) { pg.forEach(function (r) { r.style.display = i === agendaPage ? "" : "none"; }); });
+    $("agenda-pg").textContent = agendaPages > 1 ? (agendaPage + 1) + "/" + agendaPages : "";
+    if (turn && agendaPages > 1) {
+      var el = $("events");
+      el.classList.remove("turn"); void el.offsetWidth; el.classList.add("turn");
     }
-    if (pane.id === "agenda") fit(pane, $("events"), ".event", "eventos");
-    if (pane.id === "reminders-card") fit(pane, $("reminders").querySelector("ul"), "li", "itens");
-    if (pane.id === "menu-card") fit(pane, $("menu"), ".menu-row", "dias");
   }
-  function fitAll() { fitPane(document.querySelector(".pane.on")); }
+  function fitAll() { layoutAgenda(false); }
   if (window.ResizeObserver) {
     var fitQueued = false;
     new ResizeObserver(function () {
@@ -727,38 +692,14 @@
       requestAnimationFrame(function () { fitQueued = false; fitAll(); });
     }).observe($("panel"));
   }
-
-  // ---------- card com abas ----------
-  // Troca de aba a cada foto ou vídeo novo no fundo (sem fotos, a cada 45 s). Abas vazias são puladas.
-  var paneIdx = -1, paneTimer = null;
-  function panes() {
-    return Array.prototype.filter.call(document.querySelectorAll(".pane"), function (p) {
-      if (p.id === "agenda") return true;
-      return !!p.textContent.trim() && !p.querySelector(".empty");
-    });
-  }
-  function showPane(idx) {
-    var list = panes();
-    if (!list.length) return;
-    paneIdx = ((idx % list.length) + list.length) % list.length;
-    var cur = list[paneIdx];
-    Array.prototype.forEach.call(document.querySelectorAll(".pane"), function (p) { p.classList.toggle("on", p === cur); });
-    $("tabs").innerHTML = list.map(function (p) {
-      return '<span class="' + (p === cur ? "on" : "") + '">' + esc(p.getAttribute("data-tab")) + "</span>";
-    }).join("");
-    fitPane(cur);
-  }
   function rotatePanel() {
-    showPane(paneIdx + 1);
-    clearTimeout(paneTimer);
-    if (!photos.length) paneTimer = setTimeout(rotatePanel, CONFIG.photoEveryMs);
+    layoutAgenda(true);
+    clearTimeout(pageTimer);
+    pageTimer = photos.length ? null : setTimeout(rotatePanel, CONFIG.photoEveryMs);
   }
-  // depois de atualizar os dados: mantém a aba atual (ou a próxima, se ela ficou vazia)
   function refreshPanel() {
-    var cur = document.querySelector(".pane.on");
-    var list = panes(), i = cur ? list.indexOf(cur) : -1;
-    showPane(i >= 0 ? i : Math.max(paneIdx, 0));
-    if (!photos.length && !paneTimer) paneTimer = setTimeout(rotatePanel, CONFIG.photoEveryMs);
+    layoutAgenda(false);
+    if (!photos.length && !pageTimer) pageTimer = setTimeout(rotatePanel, CONFIG.photoEveryMs);
   }
 
   // ---------- Spotify: tocando agora ----------
@@ -878,9 +819,9 @@
       }
       $("weather").innerHTML =
         '<div class="now">' + now[0] + " " + Math.round(w.current.temperature_2m) + "°</div>" +
-        '<div class="range">' + (CONFIG.cidade ? esc(CONFIG.cidade) + " · " : "") + now[1] + " · " +
+        '<div class="range"><div>' + (CONFIG.cidade ? esc(CONFIG.cidade) + " · " : "") + now[1] + "</div><div>" +
         Math.round(d.temperature_2m_min[0]) + "° / " + Math.round(d.temperature_2m_max[0]) + "° · chuva " +
-        d.precipitation_probability_max[0] + "%</div>" +
+        d.precipitation_probability_max[0] + "%</div></div>" +
         '<div class="days">' + days + "</div>";
       fitAll(); // o cabeçalho mudou de altura
     }).catch(function () { /* mantém o último tempo exibido */ });
@@ -908,8 +849,6 @@
     lastData = data;
     profileName = data.name || "";
     tick();
-    renderEvents(data.events || []);
-    $("reminders").innerHTML = renderItems(data.reminders, 8, true);
     renderMenu(data.menu);
     setPhotos(data.photos || []);
     setSpotify(data.spotify);
@@ -928,12 +867,12 @@
     var t = startOfDay(new Date());
     function at(o, h, m) { var d = new Date(t); d.setDate(d.getDate() + o); d.setHours(h, m || 0); return d.toISOString(); }
     function day(o) { var d = new Date(t); d.setDate(d.getDate() + o); return d.toISOString(); }
-    function due(o) { return dayKey(new Date(t.getTime() + o * 86400000)) + "T00:00:00.000Z"; }
     var C = { familia: "#4fb38b", pessoa1: "#7aa2f7", pessoa2: "#e8768a", pessoa3: "#f2b544" };
     var events = [
       { who: "pessoa3", title: "Natação", start: at(0, 8, 30), end: at(0, 9, 30) },
       { who: "familia", title: "Almoço em família", start: at(0, 12, 30), end: at(0, 14) },
       { who: "pessoa2", title: "Pilates", start: at(0, 18), end: at(0, 19) },
+      { who: "pessoa1", title: "Aula de inglês online com a professora particular", start: at(0, 20), end: at(0, 21) },
       { who: "familia", title: "Aniversário", start: day(1), end: day(2), allDay: true },
       { who: "pessoa1", title: "Dentista", start: at(1, 10), end: at(1, 11) },
       { who: "pessoa3", title: "Prova de matemática", start: day(2), end: day(3), allDay: true },
@@ -941,12 +880,6 @@
       { who: "pessoa2", title: "Consulta médica", start: at(3, 15), end: at(3, 16) },
       { who: "pessoa1", title: "Futebol", start: at(3, 18, 30), end: at(3, 20) }
     ];
-    var reminders = {
-      familia: [{ title: "Pagar conta de luz", due: due(-1) }, { title: "Levar o lixo reciclável", due: due(0) }, { title: "Renovar seguro do carro", due: due(4) }, { title: "Ligar para o encanador" }],
-      pessoa1: [{ title: "Pagar conta de luz", due: due(-1) }, { title: "Renovar seguro do carro", due: due(4) }, { title: "Trocar óleo do carro" }],
-      pessoa2: [{ title: "Comprar presente de aniversário", due: due(0) }, { title: "Agendar vacina", due: due(2) }],
-      pessoa3: [{ title: "Estudar para a prova", due: due(1) }, { title: "Levar a mochila da natação", due: due(0) }, { title: "Arrumar o quarto" }]
-    };
     var names = { familia: "", pessoa1: "Pessoa 1", pessoa2: "Pessoa 2", pessoa3: "Pessoa 3" };
     var p = names.hasOwnProperty(pessoa) ? pessoa : "familia";
     var photo = function (seed) { return { url: "https://picsum.photos/seed/" + seed + "/1280/800", w: 1280, h: 800 }; };
@@ -955,7 +888,6 @@
       name: names[p],
       events: events.filter(function (e) { return p === "familia" || e.who === p || e.who === "familia"; })
                     .map(function (e) { e.color = C[e.who]; return e; }),
-      reminders: reminders[p],
       menu: [
         { weekday: 0, almoco: "Churrasco", jantar: "Sopa de legumes" },
         { weekday: 1, almoco: "Frango grelhado", jantar: "Omelete" },

@@ -1,19 +1,15 @@
 /**
  * Painel da Família — Google Apps Script
  *
- * Lê Google Agenda, Google Tasks, uma planilha (compras, cardápio, lembretes)
- * e fotos (álbum compartilhado do Google Fotos ou pasta do Drive) e devolve
- * JSON para o painel. Instalação: veja o LEIA-ME.md.
- *
- * Requer o serviço avançado "Google Tasks API" (Serviços > + > Tasks API)
- * se algum perfil usar taskLists.
+ * Lê Google Agenda, o cardápio de uma planilha e fotos (álbum compartilhado do
+ * Google Fotos ou pasta do Drive) e devolve JSON para o painel. Veja o README.
  */
 
 // Troque por uma sequência aleatória. O painel envia o mesmo valor em ?token=
 const TOKEN = 'troque-este-segredo';
 
 // ID da planilha "Painel da Família" (o trecho entre /d/ e /edit na URL).
-// Abas esperadas: "Compras", "Cardápio", "Lembretes". Veja o LEIA-ME.md.
+// Só a aba "Cardápio" é usada (colunas Dia | Almoço | Jantar). Vazio = sem cardápio.
 const SHEET_ID = '';
 
 // Um perfil por painel. Use ?pessoa=<chave> na URL do painel.
@@ -21,9 +17,7 @@ const SHEET_ID = '';
 //             As agendas das outras pessoas precisam estar compartilhadas com a conta
 //             que roda este script. 'primary' = sua agenda principal.
 //  colors:    cor opcional por agenda (senão usa a cor do Google Agenda).
-//  taskLists: nomes de listas do Google Tasks DESTA conta (lembretes de voz do Google Assistente caem em "Minhas tarefas").
-//  sheetReminders: nome usado na coluna "Pessoa" da aba Lembretes (linhas com "Todos" aparecem para todos).
-//  shopping / menu: mostrar compras e cardápio da planilha.
+//  menu:      mostrar o cardápio da planilha.
 //  photos: { album: 'link do álbum compartilhado do Google Fotos' } ou { folder: 'ID da pasta no Drive' }.
 //          Vídeos do álbum tocam sozinhos, sem som, no fundo da tela.
 //  spotify: mostrar o card "Tocando agora" (veja a seção Spotify no README).
@@ -37,9 +31,6 @@ const PROFILES = {
   familia: {
     name: '',
     calendars: ['primary'],
-    taskLists: ['Minhas tarefas'],
-    sheetReminders: 'Todos',
-    shopping: false,
     menu: true,
     photos: { album: '' },
     news: [],
@@ -48,9 +39,6 @@ const PROFILES = {
   pessoa1: {
     name: 'Pessoa 1',
     calendars: ['primary'],
-    taskLists: ['Minhas tarefas'],
-    sheetReminders: 'Pessoa 1',
-    shopping: false,
     menu: true,
     photos: { album: '' },
     news: [],
@@ -59,9 +47,6 @@ const PROFILES = {
   pessoa2: {
     name: 'Pessoa 2',
     calendars: [/* 'email-da-pessoa2@gmail.com' */],
-    taskLists: [],
-    sheetReminders: 'Pessoa 2',
-    shopping: false,
     menu: true,
     photos: { album: '' },
     news: [],
@@ -69,9 +54,6 @@ const PROFILES = {
   pessoa3: {
     name: 'Pessoa 3',
     calendars: [/* 'email-da-pessoa3@gmail.com' */],
-    taskLists: [],
-    sheetReminders: 'Pessoa 3',
-    shopping: false,
     menu: true,
     photos: { album: '' },
     news: [],
@@ -114,12 +96,10 @@ function doGet(e) {
   const safe = (label, fn, fallback) => {
     try { return fn(); } catch (err) { warnings.push(label + ': ' + err.message); return fallback; }
   };
-  const sheet = SHEET_ID ? safe('planilha', () => SpreadsheetApp.openById(SHEET_ID), null) : null;
+  const sheet = SHEET_ID && profile.menu ? safe('planilha', () => SpreadsheetApp.openById(SHEET_ID), null) : null;
   const body = JSON.stringify({
     name: profile.name,
     events: safe('agenda', () => getEvents_(profile, days), []),
-    reminders: safe('lembretes', () => getReminders_(profile, sheet), []),
-    shopping: profile.shopping ? safe('compras', () => getShopping_(sheet), []) : null,
     menu: profile.menu ? safe('cardápio', () => getMenu_(sheet), []) : null,
     photos: safe('fotos', () => getPhotos_(profile.photos || {}), []),
     spotify: !!(profile.spotify && spotifyConfigured_()),
@@ -166,50 +146,7 @@ function getEvents_(profile, days) {
     .sort((a, b) => new Date(a.start) - new Date(b.start));
 }
 
-// ---------------- Lembretes ----------------
-function getReminders_(profile, sheet) {
-  const items = [];
-
-  if (profile.taskLists && profile.taskLists.length) {
-    if (typeof Tasks === 'undefined') throw new Error('adicione o serviço "Google Tasks API" e publique uma nova versão');
-    const lists = Tasks.Tasklists.list({ maxResults: 100 }).items || [];
-    lists.filter(l => profile.taskLists.indexOf(l.title) !== -1).forEach(l => {
-      let pageToken;
-      do {
-        const res = Tasks.Tasks.list(l.id, { showCompleted: false, showHidden: false, maxResults: 100, pageToken: pageToken });
-        (res.items || []).forEach(t => {
-          if (t.status !== 'completed' && t.title) items.push({ title: t.title, due: t.due || null });
-        });
-        pageToken = res.nextPageToken;
-      } while (pageToken);
-    });
-  }
-
-  if (sheet && profile.sheetReminders) {
-    rows_(sheet, 'Lembretes').forEach(r => {
-      // colunas: Lembrete | Pessoa | Data | Feito
-      const who = String(r[1] || 'Todos').trim();
-      if (isDone_(r[3]) || !r[0]) return;
-      if (who !== profile.sheetReminders && who !== 'Todos') return;
-      items.push({ title: String(r[0]), due: r[2] instanceof Date ? isoDate_(r[2]) : null });
-    });
-  }
-
-  return items.sort((a, b) => {
-    if (a.due && b.due) return a.due < b.due ? -1 : 1;
-    if (a.due) return -1;
-    if (b.due) return 1;
-    return 0;
-  });
-}
-
-// ---------------- Compras e cardápio (planilha) ----------------
-function getShopping_(sheet) {
-  if (!sheet) return [];
-  // colunas: Item | Comprado (caixa de seleção)
-  return rows_(sheet, 'Compras').filter(r => r[0] && !isDone_(r[1])).map(r => ({ title: String(r[0]) }));
-}
-
+// ---------------- Cardápio (planilha) ----------------
 function getMenu_(sheet) {
   if (!sheet) return [];
   const WD = { dom: 0, seg: 1, ter: 2, qua: 3, qui: 4, sex: 5, sab: 6, 'sáb': 6 };
@@ -506,9 +443,6 @@ function rows_(sheet, name) {
   if (!tab || tab.getLastRow() < 2) return [];
   return tab.getRange(2, 1, tab.getLastRow() - 1, Math.max(tab.getLastColumn(), 4)).getValues();
 }
-function isDone_(v) { return v === true || /^(sim|x|ok|feito|true)$/i.test(String(v).trim()); }
-// mesmo formato do Google Tasks: só a data, à meia-noite UTC
-function isoDate_(d) { return Utilities.formatDate(d, Session.getScriptTimeZone(), 'yyyy-MM-dd') + 'T00:00:00.000Z'; }
 function json_(obj) { return ContentService.createTextOutput(JSON.stringify(obj)).setMimeType(ContentService.MimeType.JSON); }
 
 /** Rode no editor para autorizar e conferir o que cada perfil vai mostrar. */
