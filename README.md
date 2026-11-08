@@ -125,6 +125,8 @@ No perfil, preencha `news` com os sites, por exemplo `news: ['g1.globo.com', { s
 
 As fotos aparecem inteiras, sem cortes, no tamanho real da tela; nas laterais fica a mesma foto desfocada. Para a foto preencher a tela toda (cortando as bordas), acrescente `&fundo=cobrir` ao endereço do painel.
 
+Os vídeos são baixados por inteiro (na versão 1080p do Google Fotos, quando existe) enquanto o item anterior está na tela, e só aparecem quando estão prontos, para não travar.
+
 Os vídeos do álbum tocam sozinhos, sem som, no fundo, e a próxima foto entra quando o vídeo acaba (no máximo 2 minutos por vídeo). No Chromecast sem Google TV, que é mais fraco, o vídeo aparece como foto (o primeiro quadro).
 
 ## Segurança

@@ -349,24 +349,85 @@
     setTimeout(function () {
       while (box.children.length > 1 && box.firstChild !== el) {
         var f = box.firstChild;
-        if (f.tagName === "VIDEO") { f.pause(); f.removeAttribute("src"); f.load(); }
+        if (f.tagName === "VIDEO") releaseVideo(f);
         f.remove();
       }
     }, 2200);
   }
-  // Vídeo do álbum: toca sem som e passa para o próximo item quando acaba (no máximo 2 minutos).
+  // Vídeo do álbum: só aparece depois de baixado, para não travar no meio. Enquanto isso, a foto
+  // anterior continua na tela. Toca sem som e passa para o próximo item quando acaba (máx. 2 min).
   // No Chromecast antigo, que não aguenta bem, mostra só o primeiro quadro como foto.
-  function playVideo(p) {
-    var v = document.createElement("video");
-    v.muted = true; v.autoplay = true; v.playsInline = true; v.preload = "auto";
-    v.setAttribute("muted", ""); v.setAttribute("playsinline", "");
-    var done = false;
-    function next() { if (!done) { done = true; scheduleNext(0); } }
-    v.addEventListener("canplay", function () { if (!v.parentNode) { showLayer(v); scheduleNext(120 * 1000); } v.play().catch(function () {}); }, { once: true });
-    v.addEventListener("ended", next);
-    v.addEventListener("error", function () { if (!v.parentNode) showStill(p); else next(); });
-    v.src = p.video;
-    scheduleNext(20 * 1000); // se não carregar em 20 s, segue a fila
+  var VIDEO_MAX_BYTES = 150 * 1024 * 1024;
+  var videoPrep = {}, bgGen = 0;
+  function fetchVideoBlob(url) {
+    var ctrl = window.AbortController ? new AbortController() : null;
+    var t = setTimeout(function () { if (ctrl) ctrl.abort(); }, 3 * 60 * 1000);
+    return fetch(url, ctrl ? { signal: ctrl.signal } : {}).then(function (r) {
+      if (!r.ok) throw new Error("http " + r.status);
+      if ((+r.headers.get("content-length") || 0) > VIDEO_MAX_BYTES) throw new Error("vídeo grande demais");
+      return r.blob();
+    }).then(function (b) {
+      clearTimeout(t);
+      if (!/^video\//.test(b.type) || b.size > VIDEO_MAX_BYTES) throw new Error("não é um vídeo");
+      return URL.createObjectURL(b);
+    }, function (e) { clearTimeout(t); throw e; });
+  }
+  // cria o elemento e espera até o navegador dizer que consegue tocar até o fim sem parar
+  function bufferVideo(src, ms) {
+    return new Promise(function (resolve, reject) {
+      var v = document.createElement("video");
+      v.muted = true; v.playsInline = true; v.preload = "auto";
+      v.setAttribute("muted", ""); v.setAttribute("playsinline", "");
+      var timer = setTimeout(fail, ms);
+      function fail() { clearTimeout(timer); v.removeAttribute("src"); v.load(); reject(new Error("vídeo não carregou")); }
+      v.addEventListener("canplaythrough", function () { clearTimeout(timer); resolve(v); }, { once: true });
+      v.addEventListener("error", fail, { once: true });
+      v.src = src;
+      v.load();
+    });
+  }
+  function prepareVideo(p) {
+    if (videoPrep[p.video]) return videoPrep[p.video];
+    var hd = p.video.replace(/=dv$/, "=m37"); // versão 1080p do Google Fotos, mais leve que o original
+    var pr = fetchVideoBlob(hd).catch(function () { return fetchVideoBlob(p.video); }).then(function (blobUrl) {
+      return bufferVideo(blobUrl, 30000).then(function (v) { v._blob = blobUrl; return v; },
+        function (e) { URL.revokeObjectURL(blobUrl); throw e; });
+    }).catch(function () {
+      // sem permissão para baixar o arquivo: deixa o próprio player carregar o suficiente
+      return bufferVideo(hd, 60000).catch(function () { return bufferVideo(p.video, 90000); });
+    });
+    videoPrep[p.video] = pr;
+    return pr;
+  }
+  function releaseVideo(v) {
+    v.pause(); v.removeAttribute("src"); v.load();
+    if (v._blob) { URL.revokeObjectURL(v._blob); v._blob = null; }
+  }
+  function playVideo(p, gen) {
+    var gaveUp = false;
+    // se em 4 minutos não ficou pronto, mostra o primeiro quadro como foto
+    clearTimeout(photoTimer);
+    photoTimer = setTimeout(function () { gaveUp = true; delete videoPrep[p.video]; showStill(p); }, 4 * 60 * 1000);
+    prepareVideo(p).then(function (v) {
+      delete videoPrep[p.video];
+      if (gaveUp || gen !== bgGen) { releaseVideo(v); return; }
+      var done = false;
+      function next() { if (!done) { done = true; if (gen === bgGen) scheduleNext(0); } }
+      v.addEventListener("ended", next);
+      v.addEventListener("error", next);
+      showLayer(v);
+      v.play().catch(function () {});
+      scheduleNext(Math.min(120, (isFinite(v.duration) && v.duration ? v.duration : 120) + 5) * 1000);
+    }, function () {
+      delete videoPrep[p.video];
+      if (!gaveUp && gen === bgGen) showStill(p);
+    });
+  }
+  // baixa o próximo vídeo da fila enquanto o item atual está na tela
+  function prefetchNext() {
+    if (IS_CAST || photos.length < 2) return;
+    var n = photos[(photoIdx + 1) % photos.length];
+    if (n && n.video) prepareVideo(n).catch(function () {});
   }
   function showStill(p) {
     photoUrl(p).then(function (src) {
@@ -406,7 +467,9 @@
     if (!photos.length) return;
     photoIdx = (photoIdx + 1) % photos.length;
     var p = photos[photoIdx];
-    if (p.video && !IS_CAST) playVideo(p); else showStill(p);
+    bgGen++;
+    if (p.video && !IS_CAST) playVideo(p, bgGen); else showStill(p);
+    prefetchNext();
   }
 
   // ---------- encaixe: nada é cortado no fim dos cards ----------
