@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Caveat:wght@500&family=Great+Vibes&family=Cormorant+Garamond:wght@500&display=swap">
 <script src="versiculos.js"></script>
+<script src="universo.js"></script>
 <title>Painel da Família</title>
 <!--
   Painel da Família — página única para TV (Chromecast, Android TV, navegador).
@@ -16,6 +17,8 @@
     lat/lon coordenadas para a previsão do tempo (sem elas, o tempo não aparece)
     cidade  nome exibido junto ao tempo
     fundo   "cobrir" para a foto preencher a tela toda (corta as bordas); sem ele, a foto aparece inteira
+    universo fundo animado atrás da coluna da esquerda: estrelas, nebulosa, galaxia, constelacoes ou 0 (desliga).
+            Liga sozinho (estrelas) só no app da TV; no navegador, só se for pedido aqui; no Chromecast, nunca.
   Sem "api", o painel mostra dados de exemplo.
 -->
 <style>
@@ -34,6 +37,12 @@
   /* o fundo fica só no html: no body ele cobriria a foto (z-index negativo) */
   body { background: transparent; text-shadow: 0 1px 3px rgba(0, 0, 0, 0.45); }
   body { font-family: "Google Sans", Roboto, "Segoe UI", system-ui, sans-serif; font-size: 1.5vw; }
+
+  /* fundo animado (app da TV): por cima do degradê escuro, por trás dos cards; some aos poucos perto da foto */
+  #universe { position: fixed; top: 0; left: 0; width: 50vw; height: 100vh; z-index: -1; pointer-events: none; opacity: 0; transition: opacity 3s ease;
+    -webkit-mask-image: linear-gradient(90deg, #000 0, #000 88%, transparent 100%); mask-image: linear-gradient(90deg, #000 0, #000 88%, transparent 100%); }
+  #universe.show { opacity: 1; }
+  body.duo #universe { width: 48vw; }
 
   /* coluna da esquerda sobre o preto; a foto fica à direita (margem de segurança para overscan) */
   #left { position: fixed; left: 2.8vw; top: 3.5vh; bottom: 3vh; width: 42.2vw; display: flex; flex-direction: column; gap: 1.8vh; }
@@ -188,6 +197,7 @@
   <div id="bg"></div>
   <div id="shade"></div>
   <div id="shade2"></div>
+  <canvas id="universe" hidden></canvas>
   <div id="left">
     <header>
       <div class="when">
@@ -1009,6 +1019,17 @@
     };
     document.head.appendChild(s);
   }
+
+  // ---------- fundo animado de universo (só no app da TV) ----------
+  (function () {
+    var want = (params.get("universo") || "").toLowerCase();
+    if (IS_CAST || want === "0" || !window.HomeDashUniverso) return;
+    if (!want && !window.HomeDashTV) return;
+    var c = $("universe");
+    c.hidden = false;
+    window.HomeDashUniverso.start(c, want || "estrelas");
+    requestAnimationFrame(function () { c.classList.add("show"); });
+  })();
 
   // ---------- inicialização ----------
   updateVerse();
