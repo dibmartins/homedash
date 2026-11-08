@@ -3,6 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Caveat:wght@500&display=swap">
 <title>Painel da Família</title>
 <!--
   Painel da Família — página única para TV (Chromecast, Android TV, navegador).
@@ -51,8 +52,19 @@
   #bg.cover .layer .main { object-fit: cover; }
   #bg.cover .layer .fill { display: none; }
   /* preto à esquerda, com degradê até a foto */
-  #shade { position: fixed; inset: 0; z-index: -1; pointer-events: none;
-    background: linear-gradient(90deg, var(--bg) 0%, var(--bg) 34%, rgba(17,21,28,0.75) 42%, rgba(17,21,28,0.3) 51%, rgba(17,21,28,0) 60%); }
+  #shade, #shade2 { position: fixed; inset: 0; z-index: -1; pointer-events: none; transition: opacity 2s ease; }
+  #shade { background: linear-gradient(90deg, var(--bg) 0%, var(--bg) 34%, rgba(17,21,28,0.75) 42%, rgba(17,21,28,0.3) 51%, rgba(17,21,28,0) 60%); }
+  /* com duas fotos o degradê é mais curto, para não escurecer a primeira */
+  #shade2 { opacity: 0; background: linear-gradient(90deg, var(--bg) 0, var(--bg) 31vw, rgba(17,21,28,0) 37vw); }
+  body.duo #shade { opacity: 0; }
+  body.duo #shade2 { opacity: 1; }
+  /* fotos em pé: duas, lado a lado, em molduras de Polaroid levemente tortas */
+  #bg .duo { background: radial-gradient(ellipse at 60% 50%, #3a3026, #14110e 75%); }
+  #bg .duo figure { position: absolute; margin: 0; width: 25vw; padding: 1vw 1vw 5vw; background: #fbfaf6;
+    box-shadow: 0 1.2vw 2.5vw rgba(0,0,0,0.8); }
+  #bg .duo figure img { position: static; display: block; width: 100%; height: auto; aspect-ratio: 3 / 4; object-fit: cover; background: #ddd; }
+  #bg .duo figcaption { position: absolute; left: 0; right: 0; bottom: 1.3vw; text-align: center; color: #444;
+    font: 500 2.2vw/1 Caveat, "Segoe Script", "Comic Sans MS", cursive; }
   .hello { font-size: 1.6vw; color: var(--accent); font-weight: 600; margin-bottom: 0.6vh; }
   #clock { font-size: 5vw; font-weight: 500; line-height: 1; letter-spacing: -0.02em; }
   #date { font-size: 1.6vw; color: #d5dbe5; margin-top: 0.6vh; }
@@ -142,6 +154,7 @@
 <body>
   <div id="bg"></div>
   <div id="shade"></div>
+  <div id="shade2"></div>
   <div id="left">
     <header>
       <div class="hello" id="hello"></div>
@@ -327,6 +340,7 @@
   function showLayer(el) {
     var box = $("bg");
     box.appendChild(el);
+    document.body.classList.toggle("duo", el.classList.contains("duo"));
     requestAnimationFrame(function () { requestAnimationFrame(function () { el.classList.add("show"); }); });
     var old = box.children;
     setTimeout(function () {
@@ -412,7 +426,88 @@
     var n = photos[(photoIdx + 1) % photos.length];
     if (n && n.video) prepareVideo(n).catch(function () {});
   }
+  // ---------- fotos em pé: duas por vez, como Polaroids ----------
+  // true = em pé, false = deitada, null = não sabemos (fotos do Drive e de exemplo: descobre ao carregar)
+  function isPortrait(p) { return p && p.w && p.h ? p.h > p.w * 1.1 : null; }
+  function canPair(p) { return !PHOTO_COVER && p && !(p.video && !IS_CAST) && isPortrait(p) !== false; }
+  // procura, nos próximos itens da fila, outra foto em pé para fazer par
+  function findPartner() {
+    for (var k = 1; k <= Math.min(10, photos.length - 1); k++) {
+      var q = photos[(photoIdx + k) % photos.length];
+      if (!canPair(q)) continue;
+      if (isPortrait(q) === true) return { q: q, k: k };
+      if (k === 1) return { q: q, k: k }; // desconhecida: só tenta a próxima, para não carregar muitas
+    }
+    return null;
+  }
+  // tira a parceira da fila e coloca logo depois da atual, já contando como exibida
+  function takePartner(q) {
+    var i = photos.indexOf(q);
+    if (i < 0) return;
+    photos.splice(i, 1);
+    if (i < photoIdx) photoIdx--;
+    photos.splice(photoIdx + 1, 0, q);
+    photoIdx++;
+  }
+  function duoUrl(p) {
+    if (p.url && /googleusercontent\.com/.test(p.url))
+      return Promise.resolve(p.url.replace(/=[^=\/]*$/, "") + "=w" + Math.round(SCREEN_W * 0.4) + "-h" + SCREEN_H);
+    return photoUrl(p);
+  }
+  function loadImg(src) {
+    return new Promise(function (resolve, reject) {
+      var img = new Image();
+      img.decoding = "async";
+      img.onload = function () { resolve(img); };
+      img.onerror = reject;
+      img.src = src;
+    });
+  }
+  function caption(p) {
+    if (!p.t) return "";
+    var d = new Date(+p.t);
+    return isNaN(d) ? "" : d.toLocaleDateString("pt-BR", { month: "long", year: "numeric" });
+  }
+  function showDuo(a, ia, b, ib) {
+    var layer = document.createElement("div");
+    layer.className = "layer duo";
+    var r = function (min, max) { return (min + Math.random() * (max - min)).toFixed(1); };
+    [[a, ia, 12, r(9, 11), -r(2.5, 5)], [b, ib, 39, r(13, 15), r(2, 4)]].forEach(function (x) {
+      var fig = document.createElement("figure");
+      fig.style.left = x[2] + "vw";
+      fig.style.top = x[3] + "vh";
+      fig.style.transform = "rotate(" + x[4] + "deg)";
+      x[1].className = "";
+      fig.appendChild(x[1]);
+      var cap = document.createElement("figcaption");
+      cap.textContent = caption(x[0]);
+      fig.appendChild(cap);
+      layer.appendChild(fig);
+    });
+    showLayer(layer);
+  }
+  function tall(img) { return img.naturalHeight > img.naturalWidth * 1.1; }
   function showStill(p) {
+    if (canPair(p)) {
+      var mate = findPartner();
+      if (mate) {
+        var known = isPortrait(p) === true && isPortrait(mate.q) === true;
+        if (known) takePartner(mate.q); // já sabe que é par: reserva antes de carregar
+        scheduleNext(CONFIG.photoEveryMs);
+        Promise.all([duoUrl(p).then(loadImg), duoUrl(mate.q).then(loadImg)]).then(function (imgs) {
+          if (tall(imgs[0]) && tall(imgs[1])) {
+            if (!known) takePartner(mate.q);
+            showDuo(p, imgs[0], mate.q, imgs[1]);
+          } else if (!known) showSingle(p);
+          else showDuo(p, imgs[0], mate.q, imgs[1]);
+        }, function () { showSingle(p); });
+        return;
+      }
+    }
+    showSingle(p);
+    scheduleNext(CONFIG.photoEveryMs);
+  }
+  function showSingle(p) {
     photoUrl(p).then(function (src) {
       if (!src) return;
       var layer = document.createElement("div");
@@ -432,7 +527,6 @@
       };
       img.src = src;
     }).catch(function () {});
-    scheduleNext(CONFIG.photoEveryMs);
   }
   function photoUrl(p) {
     if (p.url) {
@@ -707,7 +801,8 @@
     };
     var names = { familia: "", pessoa1: "Pessoa 1", pessoa2: "Pessoa 2", pessoa3: "Pessoa 3" };
     var p = names.hasOwnProperty(pessoa) ? pessoa : "familia";
-    var photo = function (seed) { return { url: "https://picsum.photos/seed/" + seed + "/1280/800" }; };
+    var photo = function (seed) { return { url: "https://picsum.photos/seed/" + seed + "/1280/800", w: 1280, h: 800 }; };
+    var tallPhoto = function (seed, t) { return { url: "https://picsum.photos/seed/" + seed + "/600/800", w: 600, h: 800, t: t }; };
     return {
       name: names[p],
       events: events.filter(function (e) { return p === "familia" || e.who === p || e.who === "familia"; })
@@ -724,7 +819,7 @@
         { weekday: 5, almoco: "Lasanha", jantar: "Pizza caseira" },
         { weekday: 6, almoco: "Macarronada", jantar: "Lanche" }
       ],
-      photos: [photo("familia1"), photo("praia2"), photo("parque3")],
+      photos: [photo("familia1"), tallPhoto("praia2", Date.UTC(2024, 0, 15)), tallPhoto("sitio4", Date.UTC(2025, 6, 10)), photo("parque3")],
       news: [
         { source: "Esportes", title: "Time vence fora de casa e sobe na tabela" },
         { source: "Esportes", title: "Técnico confirma escalação para o clássico de domingo" },
