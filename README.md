@@ -1,6 +1,6 @@
 # homedash · Painel da Família
 
-Um painel para TV com relógio, tempo, agenda, cardápio da semana e fotos.
+Um painel para TV com relógio, tempo, agenda e cardápio do dia e fotos.
 Cada pessoa pode ter o seu painel (`pessoa=pessoa1`, `pessoa2`...) e há um painel geral (`pessoa=familia`).
 
 ![Prévia do painel com dados de exemplo](docs/previa.png)
@@ -22,7 +22,7 @@ Crie uma planilha no Google Sheets e compartilhe com quem mora com você para to
 |---|---|
 | Cardápio | Dia (seg, ter, qua, qui, sex, sáb, dom) · Almoço · Jantar |
 
-Sem planilha (`SHEET_ID` vazio), o painel fica sem a aba Cardápio.
+Sem planilha (`SHEET_ID` vazio), o painel fica sem o card Cardápio de hoje.
 
 ## 2. Script (Google Apps Script)
 
@@ -129,7 +129,7 @@ Fotos em pé aparecem em dupla, como duas Polaroids lado a lado, com o mês e o 
 
 Os vídeos são baixados por inteiro (na versão 1080p do Google Fotos, quando existe) enquanto o item anterior está na tela, e só aparecem quando estão prontos, para não travar.
 
-Os vídeos do álbum tocam sozinhos, sem som, no fundo (no app de Android TV, pelo player do próprio Android, que é mais leve), e a próxima foto entra quando o vídeo acaba (no máximo 2 minutos por vídeo). No Chromecast sem Google TV, que é mais fraco, o vídeo aparece como foto (o primeiro quadro).
+Os vídeos do álbum tocam sozinhos, sem som, no fundo (no app de Android TV, pelo player do próprio Android, que é mais leve), e a próxima foto entra quando o vídeo acaba (no máximo 2 minutos por vídeo). No Chromecast sem Google TV, que é mais fraco, o vídeo aparece como foto (o primeiro quadro), sempre sozinho, nunca na dupla de Polaroids.
 
 ## Segurança
 
