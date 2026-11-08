@@ -51,6 +51,9 @@
   #bg .layer .main { object-fit: contain; }
   #bg .layer .fill { object-fit: cover; filter: blur(2vw) brightness(0.55); transform: scale(1.1); }
   .lite #bg .layer .fill { filter: brightness(0.5); }
+  .lite #bg .duo { background: #1a1612; }
+  .lite #bg .duo figure { box-shadow: 0 0.6vw 1vw rgba(0,0,0,0.6); }
+  .lite #bg .layer, .lite #shade, .lite #shade2 { transition-duration: 1s; }
   #bg.cover .layer .main { object-fit: cover; }
   #bg.cover .layer .fill { display: none; }
   /* preto à esquerda, com degradê até a foto */
@@ -385,9 +388,10 @@
 
   // ---------- fotos (fundo da tela inteira) ----------
   // Pede a foto no tamanho real da tela (TVs 4K chegam a 3840 px) para não ficar serrilhada.
-  var IS_CAST = /CrKey/.test(navigator.userAgent);
-  var SCREEN_W = Math.min(3840, Math.round(screen.width * (window.devicePixelRatio || 1)));
-  var SCREEN_H = Math.min(2160, Math.round(screen.height * (window.devicePixelRatio || 1)));
+  // Chromecast (ou ?leve=1): modo leve, sem vídeos e com fotos menores, para não travar nem reiniciar
+  var IS_CAST = /CrKey/.test(navigator.userAgent) || params.get("leve") === "1";
+  var SCREEN_W = Math.min(IS_CAST ? 1280 : 3840, Math.round(screen.width * (window.devicePixelRatio || 1)));
+  var SCREEN_H = Math.min(IS_CAST ? 720 : 2160, Math.round(screen.height * (window.devicePixelRatio || 1)));
   // ?fundo=cobrir: foto preenche a tela toda (corta as bordas). Padrão: foto inteira, sem cortes.
   var PHOTO_COVER = params.get("fundo") === "cobrir";
   if (PHOTO_COVER) $("bg").classList.add("cover");
@@ -961,9 +965,15 @@
     };
   }
 
-  // ---------- Chromecast: mantém o receptor aberto ----------
-  if (/CrKey/.test(navigator.userAgent)) {
+  // ---------- Chromecast: modo leve e receptor aberto ----------
+  if (IS_CAST) {
     document.documentElement.className += " lite";
+    // a memória do Chromecast antigo é pequena: recarrega a página a cada 4 horas
+    setTimeout(function () { if (navigator.onLine !== false) location.reload(); }, 4 * 3600 * 1000);
+  }
+  // Só quando a página é o próprio app do Chromecast. Enviada pelo catt (cast_site), ela roda
+  // dentro de outro receptor, e iniciar um segundo receptor ali só atrapalha.
+  if (/CrKey/.test(navigator.userAgent) && window.top === window) {
     var s = document.createElement("script");
     s.src = "https://www.gstatic.com/cast/sdk/libs/caf_receiver/v3/cast_receiver_framework.js";
     s.onload = function () {
