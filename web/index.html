@@ -3,7 +3,8 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Caveat:wght@500&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Caveat:wght@500&family=Great+Vibes&family=Cormorant+Garamond:wght@500&display=swap">
+<script src="versiculos.js"></script>
 <title>Painel da Família</title>
 <!--
   Painel da Família — página única para TV (Chromecast, Android TV, navegador).
@@ -94,7 +95,7 @@
   #spotify-card { padding: 1.4vh 1.3vw; }
   #spotify-card h2 { margin-bottom: 0.3vh; }
   .np-bar { margin-top: 0.8vh !important; }
-  #events.turn { animation: paneIn 0.6s ease; }
+  #events.turn, #panel.turn, #gospel-card.turn { animation: paneIn 0.6s ease; }
   @keyframes paneIn { from { opacity: 0; } to { opacity: 1; } }
 
   /* Spotify: tocando agora */
@@ -137,6 +138,24 @@
   .meal b { display: block; font-weight: 500; font-size: 1.6vw; line-height: 1.25; overflow-wrap: break-word; }
 
   .hidden { display: none !important; }
+
+  /* versículo do dia: na base da foto, em letra manuscrita */
+  #verse { position: fixed; left: 45vw; right: 0; bottom: 0; padding: 12vh 3vw 3vh; text-align: center; z-index: 1; pointer-events: none;
+    background: linear-gradient(0deg, rgba(8,10,14,0.85), rgba(8,10,14,0.6) 55%, rgba(8,10,14,0)); }
+  body.has-news #verse { bottom: 6vh; }
+  .lite body.has-news #verse { bottom: 8.8vh; }
+  #verse .vt { font: 400 2.7vw/1.12 "Great Vibes", "Segoe Script", cursive; color: #fbf3df; text-shadow: 0 0.2vw 0.9vw rgba(0,0,0,0.9); }
+  #verse .vr { margin-top: 1vh; font: 500 1.05vw "Cormorant Garamond", Georgia, serif; letter-spacing: 0.25em; text-transform: uppercase; color: #e3c27a; text-shadow: 0 0 0.6vw #000; }
+  /* com o versículo, as duas Polaroids sobem e diminuem um pouco para não ficar por baixo dele */
+  body.has-verse #bg .duo figure { width: 18.5vw; margin-top: -10vh; }
+
+  /* evangelho do dia: reveza com a agenda e o cardápio */
+  #gospel-card { flex: 1 1 0; text-shadow: none; }
+  #gospel-card .gh { display: flex; justify-content: space-between; align-items: baseline; gap: 1vw; }
+  #gospel-card .gh span { font-size: 1vw; color: #93a0b4; white-space: nowrap; }
+  #gospel-card .lbl { color: #e3c27a; }
+  #gospel-day { font-size: 1.05vw; color: #93a0b4; margin: -0.4vh 0 0.8vh; }
+  #gospel-text { line-height: 1.42; color: #dfe5ee; font-size: 1.1vw; }
 
   /* lembrete do lixo: aparece na véspera e na manhã da coleta */
   #trash { flex: none; display: flex; align-items: center; gap: 1.1vw; padding: 1.5vh 1.3vw; border-radius: 1.1vw;
@@ -183,6 +202,11 @@
       <div class="card" id="agenda"><div class="lbl">Agenda de hoje</div><span class="pg" id="agenda-pg"></span><div id="events"></div></div>
       <div class="card hidden" id="menu-card"><div class="lbl">Cardápio de hoje</div><div id="menu"></div></div>
     </div>
+    <div class="card hidden" id="gospel-card">
+      <div class="gh"><div class="lbl">Evangelho do dia</div><span id="gospel-ref"></span></div>
+      <div id="gospel-day"></div>
+      <div id="gospel-text"></div>
+    </div>
 
     <div class="card hidden" id="spotify-card" style="flex: none">
       <div class="np">
@@ -197,6 +221,7 @@
     </div>
   </div>
 
+  <div id="verse" class="hidden"><div class="vt"></div><div class="vr"></div></div>
   <div id="status"></div>
   <div id="news" class="hidden"><div class="tag">Notícias</div><div class="lane"><div id="news-track"></div></div></div>
 
@@ -242,7 +267,7 @@
     $("date").textContent = WEEK[now.getDay()] + ", " + now.getDate() + " de " + MONTHS[now.getMonth()];
     var greet = h < 5 ? "Boa noite" : h < 12 ? "Bom dia" : h < 18 ? "Boa tarde" : "Boa noite";
     $("hello").textContent = greet + (profileName ? ", " + profileName : "");
-    if (now.getSeconds() === 0) updateTrash();
+    if (now.getSeconds() === 0) { updateTrash(); updateVerse(); }
   }
 
   // ---------- lembrete do lixo ----------
@@ -668,7 +693,7 @@
     return pages;
   }
   function layoutAgenda(turn) {
-    if (!lastData) return;
+    if (!lastData || $("panel").classList.contains("hidden")) return;
     var events = lastData.events || [];
     renderEvents(events);
     var pages = paginate();
@@ -683,23 +708,78 @@
       el.classList.remove("turn"); void el.offsetWidth; el.classList.add("turn");
     }
   }
-  function fitAll() { layoutAgenda(false); }
+  // ---------- evangelho do dia ----------
+  // A letra diminui até o texto inteiro caber no card.
+  function todayKey() { var d = new Date(); return d.getFullYear() + "-" + pad(d.getMonth() + 1) + "-" + pad(d.getDate()); }
+  function hasGospel() { var g = lastData && lastData.gospel; return !!(g && g.text && (!g.date || g.date === todayKey())); }
+  function renderGospel() {
+    if (!hasGospel()) return;
+    var g = lastData.gospel;
+    $("gospel-ref").textContent = g.ref || "";
+    $("gospel-day").textContent = g.day || "";
+    $("gospel-text").textContent = g.text;
+  }
+  function fitGospel() {
+    var card = $("gospel-card"), txt = $("gospel-text");
+    if (card.classList.contains("hidden")) return;
+    for (var size = 1.15; size >= 0.7; size -= 0.03) {
+      txt.style.fontSize = size.toFixed(2) + "vw";
+      if (card.scrollHeight <= card.clientHeight + 1) break;
+    }
+  }
+
+  // ---------- coluna da esquerda: agenda e cardápio <-> evangelho ----------
+  // A cada foto nova: a próxima página da agenda; depois da última, o evangelho; depois, a agenda de novo.
+  var panelView = 0;
+  function setView(v) {
+    panelView = v;
+    $("panel").classList.toggle("hidden", v !== 0);
+    $("gospel-card").classList.toggle("hidden", v !== 1);
+    var el = v ? $("gospel-card") : $("panel");
+    el.classList.remove("turn"); void el.offsetWidth; el.classList.add("turn");
+    if (v) { renderGospel(); fitGospel(); } else { agendaPage = 0; layoutAgenda(false); }
+  }
+  function fitAll() {
+    if (panelView === 1) { if (hasGospel()) fitGospel(); else setView(0); }
+    else layoutAgenda(false);
+  }
   if (window.ResizeObserver) {
-    var fitQueued = false;
-    new ResizeObserver(function () {
+    var fitQueued = false, ro = new ResizeObserver(function () {
       if (fitQueued) return;
       fitQueued = true;
       requestAnimationFrame(function () { fitQueued = false; fitAll(); });
-    }).observe($("panel"));
+    });
+    ro.observe($("panel"));
+    ro.observe($("gospel-card"));
   }
   function rotatePanel() {
-    layoutAgenda(true);
+    if (panelView === 0 && agendaPage + 1 < agendaPages) layoutAgenda(true);
+    else if (panelView === 0 && hasGospel()) setView(1);
+    else if (panelView === 1) setView(0);
+    else layoutAgenda(true);
     clearTimeout(pageTimer);
     pageTimer = photos.length ? null : setTimeout(rotatePanel, CONFIG.photoEveryMs);
   }
   function refreshPanel() {
-    layoutAgenda(false);
+    if (panelView === 1 && !hasGospel()) setView(0);
+    else if (panelView === 1) { renderGospel(); fitGospel(); }
+    else layoutAgenda(false);
     if (!photos.length && !pageTimer) pageTimer = setTimeout(rotatePanel, CONFIG.photoEveryMs);
+  }
+
+  // ---------- versículo do dia ----------
+  // Um por dia, igual em todos os perfis; troca à meia-noite.
+  var verseKey = "";
+  function updateVerse() {
+    var list = window.VERSICULOS || [], key = todayKey();
+    if (!list.length || key === verseKey) return;
+    verseKey = key;
+    var d = new Date(), day = Math.floor(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()) / 86400000);
+    var v = list[day % list.length];
+    document.querySelector("#verse .vt").textContent = v[0];
+    document.querySelector("#verse .vr").textContent = "✠  " + v[1] + "  ✠";
+    $("verse").classList.remove("hidden");
+    document.body.classList.add("has-verse");
   }
 
   // ---------- Spotify: tocando agora ----------
@@ -908,6 +988,7 @@
       ],
       spotifyDemo: { playing: true, title: "Nome da música", artist: "Artista", image: null, progressMs: 95000, durationMs: 210000 },
       trash: { dias: ["segunda", "sexta"], hora: "07:30" },
+      gospel: { ref: "Mt 25,1-13", day: "Exemplo: Domingo do Tempo Comum", text: "Naquele tempo, disse Jesus a seus discípulos esta parábola: “O Reino dos Céus é semelhante a dez virgens que, tomando as suas lâmpadas, saíram ao encontro do esposo. Cinco delas eram imprudentes, e cinco, prudentes. As imprudentes, tomando as suas lâmpadas, não levaram azeite consigo. As prudentes, porém, levaram azeite em suas vasilhas, com as lâmpadas. E, tardando o esposo, cochilaram todas e adormeceram. Mas à meia-noite ouviu-se um clamor: ‘Aí vem o esposo! Saí ao seu encontro!’ Então todas aquelas virgens se levantaram e prepararam as suas lâmpadas. E as imprudentes disseram às prudentes: ‘Dai-nos do vosso azeite, porque as nossas lâmpadas se apagam’. Mas as prudentes responderam: ‘Não seja caso que nos falte a nós e a vós; ide antes aos que o vendem e comprai-o para vós’. E, tendo elas ido comprá-lo, chegou o esposo, e as que estavam preparadas entraram com ele para as bodas, e fechou-se a porta. E depois chegaram também as outras virgens, dizendo: ‘Senhor, Senhor, abre-nos!’ E ele, respondendo, disse: ‘Em verdade vos digo que vos não conheço’. Vigiai, pois, porque não sabeis o dia nem a hora”." },
       demo: true
     };
   }
@@ -930,6 +1011,7 @@
   }
 
   // ---------- inicialização ----------
+  updateVerse();
   tick();
   setInterval(tick, 1000);
   loadData();

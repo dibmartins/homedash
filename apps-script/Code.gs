@@ -62,6 +62,10 @@ const PROFILES = {
 
 const CACHE_SECONDS = 120;
 
+// Evangelho do dia (liturgia diária), de um serviço gratuito (github.com/Dancrf/liturgia-diaria).
+// Aparece num card que reveza com a agenda e o cardápio. Vazio = sem o evangelho.
+const GOSPEL_API = 'https://liturgia.up.railway.app/v2/';
+
 function doGet(e) {
   const p = (e && e.parameter) || {};
   if (TOKEN === 'troque-este-segredo' || TOKEN.length < 24) return json_({ error: 'defina um TOKEN longo no script' });
@@ -105,11 +109,44 @@ function doGet(e) {
     spotify: !!(profile.spotify && spotifyConfigured_()),
     news: (profile.news && profile.news.length) ? safe('notícias', () => getNews_(profile.news), []) : [],
     trash: profile.lixo || null,
+    gospel: GOSPEL_API ? safe('evangelho', getGospel_, null) : null,
     warnings: warnings,
     updated: new Date().toISOString(),
   });
   try { cache.put(cacheKey, body, CACHE_SECONDS); } catch (err) { /* resposta grande demais para o cache */ }
   return ContentService.createTextOutput(body).setMimeType(ContentService.MimeType.JSON);
+}
+
+// ---------------- Evangelho do dia ----------------
+// Busca uma vez e guarda por 6 horas. "date" deixa o painel esconder o card se o dia virar.
+function getGospel_() {
+  const tz = Session.getScriptTimeZone(), now = new Date();
+  const fmt = p => Utilities.formatDate(now, tz, p);
+  const key = 'evangelho-' + fmt('yyyyMMdd');
+  const cache = CacheService.getScriptCache();
+  const hit = cache.get(key);
+  if (hit) return JSON.parse(hit);
+  const url = GOSPEL_API + '?dia=' + fmt('dd') + '&mes=' + fmt('MM') + '&ano=' + fmt('yyyy');
+  const res = UrlFetchApp.fetch(url, { muteHttpExceptions: true });
+  if (res.getResponseCode() === 404) return null; // sem liturgia para hoje
+  if (res.getResponseCode() !== 200) throw new Error('HTTP ' + res.getResponseCode());
+  const j = JSON.parse(res.getContentText());
+  const ev = j.leituras && j.leituras.evangelho && j.leituras.evangelho[0];
+  if (!ev || !ev.texto) return null;
+  const out = { ref: ev.referencia || '', day: j.liturgia || '', text: cleanGospel_(ev.texto), date: fmt('yyyy-MM-dd') };
+  try { cache.put(key, JSON.stringify(out), 6 * 3600); } catch (err) {}
+  return out;
+}
+
+// Tira os números dos versículos, que vêm grudados no texto ("disse: 1“O Reino...").
+function cleanGospel_(t) {
+  return String(t).replace(/(^|[\s“"‘'(—–-])\d{1,3}(?=[^\s\d.,;:)])/g, '$1').replace(/\s+/g, ' ').trim();
+}
+
+// Execute esta função no editor para conferir o evangelho de hoje (Ver > Registros).
+function testeEvangelho() {
+  CacheService.getScriptCache().remove('evangelho-' + Utilities.formatDate(new Date(), Session.getScriptTimeZone(), 'yyyyMMdd'));
+  Logger.log(JSON.stringify(getGospel_(), null, 2));
 }
 
 // ---------------- Agenda ----------------
