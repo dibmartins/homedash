@@ -13,6 +13,7 @@
     pessoa  perfil configurado no script: familia, pessoa1, pessoa2, pessoa3...
     lat/lon coordenadas para a previsão do tempo (sem elas, o tempo não aparece)
     cidade  nome exibido junto ao tempo
+    fundo   "cobrir" para a foto preencher a tela toda (corta as bordas); sem ele, a foto aparece inteira
   Sem "api", o painel mostra dados de exemplo.
 -->
 <style>
@@ -47,8 +48,16 @@
 
   /* foto de fundo em tela cheia */
   #bg { position: fixed; inset: 0; z-index: -2; background: var(--bg); }
-  #bg img, #bg video { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; opacity: 0; transition: opacity 2s ease; }
-  #bg img.show, #bg video.show { opacity: 1; }
+  #bg .layer, #bg video { position: absolute; inset: 0; width: 100%; height: 100%; opacity: 0; transition: opacity 2s ease; }
+  #bg .layer.show, #bg video.show { opacity: 1; }
+  #bg video { object-fit: contain; background: #000; }
+  /* foto inteira no centro; nas laterais, a mesma foto bem pequena, ampliada e desfocada */
+  #bg .layer img { position: absolute; inset: 0; width: 100%; height: 100%; }
+  #bg .layer .main { object-fit: contain; }
+  #bg .layer .fill { object-fit: cover; filter: blur(2vw) brightness(0.55); transform: scale(1.1); }
+  .lite #bg .layer .fill { filter: brightness(0.5); }
+  #bg.cover .layer .main { object-fit: cover; }
+  #bg.cover .layer .fill { display: none; }
   /* escurece em cima (relógio) e embaixo, e um pouco no geral, para o texto continuar legível */
   #shade { position: fixed; inset: 0; z-index: -1; pointer-events: none;
     background: linear-gradient(to bottom, rgba(0,0,0,0.55) 0%, rgba(0,0,0,0.15) 30%, rgba(0,0,0,0.15) 65%, rgba(0,0,0,0.5) 100%); }
@@ -118,11 +127,12 @@
 
   /* barra de notícias no rodapé */
   #news { position: fixed; left: 0; right: 0; bottom: 0; height: 6vh; display: flex; align-items: stretch;
-    background: rgba(8, 10, 14, 0.78); border-top: 1px solid rgba(255, 255, 255, 0.08); z-index: 2; }
+    background: #0b0e13; border-top: 1px solid rgba(255, 255, 255, 0.08); z-index: 2; text-shadow: none; }
   #news .tag { flex: none; display: flex; align-items: center; padding: 0 1.4vw 0 2.6vw; background: #d93b3b; color: #fff;
     font-weight: 700; font-size: 1.1vw; letter-spacing: 0.12em; text-transform: uppercase; text-shadow: none; }
   #news .lane { position: relative; flex: 1; overflow: hidden; }
-  #news-track { position: absolute; top: 0; bottom: 0; left: 0; display: flex; align-items: center; white-space: nowrap; will-change: transform; }
+  #news-track { position: absolute; top: 0; bottom: 0; left: 0; display: flex; align-items: center; white-space: nowrap;
+    will-change: transform; -webkit-backface-visibility: hidden; backface-visibility: hidden; }
   #news-track span { font-size: 1.45vw; }
   #news-track .src { color: var(--accent); font-weight: 700; font-size: 1.05vw; text-transform: uppercase; letter-spacing: 0.08em; margin-right: 0.7vw; }
   #news-track .sep { color: rgba(255, 255, 255, 0.35); margin: 0 1.6vw; }
@@ -309,6 +319,9 @@
   var IS_CAST = /CrKey/.test(navigator.userAgent);
   var SCREEN_W = Math.min(3840, Math.round(screen.width * (window.devicePixelRatio || 1)));
   var SCREEN_H = Math.min(2160, Math.round(screen.height * (window.devicePixelRatio || 1)));
+  // ?fundo=cobrir: foto preenche a tela toda (corta as bordas). Padrão: foto inteira, sem cortes.
+  var PHOTO_COVER = params.get("fundo") === "cobrir";
+  if (PHOTO_COVER) $("bg").classList.add("cover");
   var photos = [], photosKey = "", photoIdx = -1, photoTimer = null;
   function setPhotos(list) {
     list = list || [];
@@ -358,9 +371,21 @@
   function showStill(p) {
     photoUrl(p).then(function (src) {
       if (!src) return;
+      var layer = document.createElement("div");
+      layer.className = "layer";
       var img = new Image();
+      img.className = "main";
       img.decoding = "async";
-      img.onload = function () { showLayer(img); };
+      img.onload = function () {
+        if (!PHOTO_COVER) {
+          var fill = new Image();
+          fill.className = "fill";
+          fill.src = /googleusercontent\.com/.test(src) ? src.replace(/=[^=\/]*$/, "=w96-h54-c") : src;
+          layer.appendChild(fill);
+        }
+        layer.appendChild(img);
+        showLayer(layer);
+      };
       img.src = src;
     }).catch(function () {});
     scheduleNext(CONFIG.photoEveryMs);
@@ -369,7 +394,8 @@
     if (p.url) {
       // álbum do Google Fotos: troca o sufixo de tamanho (=w1280-h800) pelo da tela
       if (/googleusercontent\.com/.test(p.url)) {
-        return Promise.resolve(p.url.replace(/=[^=\/]*$/, "") + "=w" + SCREEN_W + "-h" + SCREEN_H);
+        // sem "-c" o Google devolve a foto inteira cabendo na tela; com "-c", recortada para preencher
+        return Promise.resolve(p.url.replace(/=[^=\/]*$/, "") + "=w" + SCREEN_W + "-h" + SCREEN_H + (PHOTO_COVER ? "-c" : ""));
       }
       return Promise.resolve(p.url);
     }
@@ -468,12 +494,12 @@
       return (n.source ? '<span class="src">' + esc(n.source) + "</span>" : "") + "<span>" + esc(n.title) + '</span><span class="sep">•</span>';
     }).join("");
     var lane = track.parentNode.clientWidth, w = track.scrollWidth;
-    var speed = window.innerWidth / 14; // pixels por segundo
+    var speed = window.innerWidth / 24; // pixels por segundo (uma tela a cada 24 s)
     track.style.transition = "none";
-    track.style.transform = "translateX(" + lane + "px)";
+    track.style.transform = "translate3d(" + lane + "px,0,0)";
     void track.offsetWidth; // aplica a posição inicial antes de animar
     track.style.transition = "transform " + ((lane + w) / speed).toFixed(1) + "s linear";
-    track.style.transform = "translateX(" + (-w) + "px)";
+    track.style.transform = "translate3d(" + (-w) + "px,0,0)";
   }
   $("news-track").addEventListener("transitionend", runNews);
 
