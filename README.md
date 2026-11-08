@@ -1,6 +1,6 @@
 # homedash · Painel da Família
 
-Um painel para TV com relógio, tempo, agenda, lembretes, cardápio da semana e fotos.
+Um painel para TV com relógio, tempo, agenda, cardápio da semana e fotos.
 Cada pessoa pode ter o seu painel (`pessoa=pessoa1`, `pessoa2`...) e há um painel geral (`pessoa=familia`).
 
 ![Prévia do painel com dados de exemplo](docs/previa.png)
@@ -10,33 +10,29 @@ Cada pessoa pode ter o seu painel (`pessoa=pessoa1`, `pessoa2`...) e há um pain
 | Pasta | O que tem |
 |---|---|
 | `web/` | O painel (`index.html`). Abra no navegador para ver com dados de exemplo. Publicado no GitHub Pages a cada mudança na `main`. |
-| `apps-script/` | O script do Google Apps Script (`Code.gs` + `appsscript.json`) que lê agenda, tarefas, planilha e fotos. |
+| `apps-script/` | O script do Google Apps Script (`Code.gs` + `appsscript.json`) que lê agenda, cardápio (planilha) e fotos. |
 | `android/` | App Android TV em Kotlin: um WebView em tela cheia que abre o painel ao ligar a TV. |
 | `scripts/` | `manter-painel-chromecast.sh`: mantém o painel num Chromecast sem Google TV a partir de um celular Android com Termux. |
 
-## 1. Planilha da família
+## 1. Planilha do cardápio (opcional)
 
-Crie uma planilha no Google Sheets chamada "Painel da Família" e compartilhe com quem mora com você para todos editarem pelo celular. Crie três abas, com a primeira linha de títulos:
+Crie uma planilha no Google Sheets e compartilhe com quem mora com você para todos editarem pelo celular. Ela precisa de uma aba chamada **Cardápio**, com a primeira linha de títulos:
 
 | Aba | Colunas |
 |---|---|
-| Compras (opcional, o painel não mostra mais) | Item · Comprado (caixa de seleção) |
 | Cardápio | Dia (seg, ter, qua, qui, sex, sáb, dom) · Almoço · Jantar |
-| Lembretes | Lembrete · Pessoa (o nome definido em `sheetReminders` ou Todos) · Data · Feito (caixa de seleção) |
 
-Marcou "Comprado" ou "Feito", o item some do painel.
+Sem planilha (`SHEET_ID` vazio), o painel fica sem a aba Cardápio.
 
 ## 2. Script (Google Apps Script)
 
 1. Acesse https://script.google.com, crie um projeto e cole o conteúdo de `apps-script/Code.gs`.
-2. Em **Serviços** (+), adicione **Google Tasks API**.
-3. No topo do arquivo, preencha `TOKEN` (uma senha aleatória), `SHEET_ID` e os `PROFILES`:
+2. No topo do arquivo, preencha `TOKEN` (uma senha aleatória), `SHEET_ID` e os `PROFILES`:
    - **Perfis:** troque `pessoa1`, `pessoa2`... e os nomes pelos da sua casa apenas na sua cópia do script, nunca no repositório.
    - **Agendas:** as agendas das outras pessoas precisam estar compartilhadas com a sua conta. Coloque o e-mail/ID de cada uma em `calendars`.
-   - **Lembretes por voz:** "Ok Google, me lembre de..." num alto-falante Google cai no Google Tasks da conta vinculada, na lista "Minhas tarefas".
    - **Fotos:** no Google Fotos, abra o álbum, toque em Compartilhar > Criar link e cole o link em `photos.album`. Se o link parar de funcionar, use uma pasta do Drive em `photos.folder`.
-4. Rode a função `teste` uma vez para autorizar e conferir o resultado no log.
-5. **Implantar > Nova implantação > App da Web**, executar como "Eu", acesso "Qualquer pessoa". Copie a URL que termina em `/exec`.
+3. Rode a função `teste` uma vez para autorizar e conferir o resultado no log.
+4. **Implantar > Nova implantação > App da Web**, executar como "Eu", acesso "Qualquer pessoa". Copie a URL que termina em `/exec`.
 
 ## 3. Publicar o painel (GitHub Pages)
 
@@ -138,7 +134,7 @@ Os vídeos do álbum tocam sozinhos, sem som, no fundo (no app de Android TV, pe
 ## Segurança
 
 - **A página do painel não guarda nenhum segredo.** O token vai só no endereço que você configura em cada TV. Não coloque o token no repositório.
-- **O script só lê dados.** O arquivo `appsscript.json` limita as permissões a ler agenda, tarefas e Drive. A planilha exige a permissão completa de Planilhas (o `SpreadsheetApp.openById` não aceita a somente leitura), mas o código apenas lê a planilha configurada. Ele não tem permissão para enviar e-mail nem mexer na sua senha. Para usá-lo, no editor do Apps Script ative "Mostrar o arquivo de manifesto appsscript.json" (Configurações do projeto) e cole o conteúdo.
+- **O script só lê dados.** O arquivo `appsscript.json` limita as permissões a ler agenda e Drive. A planilha exige a permissão completa de Planilhas (o `SpreadsheetApp.openById` não aceita a somente leitura), mas o código apenas lê a planilha configurada. Ele não tem permissão para enviar e-mail nem mexer na sua senha. Para usá-lo, no editor do Apps Script ative "Mostrar o arquivo de manifesto appsscript.json" (Configurações do projeto) e cole o conteúdo.
 - **Quem tiver o endereço `/exec` e o token consegue ver o que aparece no painel**, e nada além disso. Use um token longo e aleatório (o script recusa tokens com menos de 24 caracteres). Se desconfiar de vazamento, troque o `TOKEN` e implante de novo.
 - **Eventos marcados como "Particular"** no Google Agenda aparecem só como "Ocupado".
 - **Fotos do Drive:** o script só entrega fotos das pastas configuradas, nunca outros arquivos.

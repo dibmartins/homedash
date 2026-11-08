@@ -2,14 +2,8 @@
   "timeZone": "America/Sao_Paulo",
   "exceptionLogging": "STACKDRIVER",
   "runtimeVersion": "V8",
-  "dependencies": {
-    "enabledAdvancedServices": [
-      { "userSymbol": "Tasks", "serviceId": "tasks", "version": "v1" }
-    ]
-  },
   "oauthScopes": [
     "https://www.googleapis.com/auth/calendar.readonly",
-    "https://www.googleapis.com/auth/tasks.readonly",
     "https://www.googleapis.com/auth/spreadsheets",
     "https://www.googleapis.com/auth/drive.readonly",
     "https://www.googleapis.com/auth/script.external_request"

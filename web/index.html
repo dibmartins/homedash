@@ -184,7 +184,6 @@
     <div class="card" id="panel">
       <div class="tabs" id="tabs"></div>
       <div class="pane" id="agenda" data-tab="Agenda"><div id="events"></div></div>
-      <div class="pane" id="reminders-card" data-tab="Lembretes"><div id="reminders"></div></div>
       <div class="pane" id="menu-card" data-tab="Cardápio"><div id="menu"></div></div>
     </div>
 
@@ -348,23 +347,6 @@
       html += "</div>";
     });
     $("events").innerHTML = html;
-  }
-
-  // ---------- lembretes e compras ----------
-  function renderItems(items, max, withDue) {
-    if (!items || !items.length) return '<div class="empty">Tudo feito</div>';
-    var today = startOfDay(new Date()), html = "<ul>";
-    items.forEach(function (t) {
-      var due = "", late = false;
-      if (withDue && t.due) {
-        var d = startOfDay(new Date(t.due.slice(0, 10) + "T12:00:00")); // Tasks guarda só a data
-        late = d < today;
-        due = +d === +today ? "hoje" : d.getDate() + "/" + pad(d.getMonth() + 1);
-      }
-      html += '<li class="' + (late ? "late" : "") + '"><span>' + esc(t.title) + "</span>" +
-              (due ? '<span class="due">' + due + "</span>" : "") + "</li>";
-    });
-    return html + "</ul>";
   }
 
   // ---------- cardápio ----------
@@ -711,11 +693,9 @@
     if (!pane) return;
     if (lastData) {
       if (pane.id === "agenda") renderEvents(lastData.events || []);
-      if (pane.id === "reminders-card") $("reminders").innerHTML = renderItems(lastData.reminders, 8, true);
       if (pane.id === "menu-card") renderMenu(lastData.menu);
     }
     if (pane.id === "agenda") fit(pane, $("events"), ".event", "eventos");
-    if (pane.id === "reminders-card") fit(pane, $("reminders").querySelector("ul"), "li", "itens");
     if (pane.id === "menu-card") fit(pane, $("menu"), ".menu-row", "dias");
   }
   function fitAll() { fitPane(document.querySelector(".pane.on")); }
@@ -909,7 +889,6 @@
     profileName = data.name || "";
     tick();
     renderEvents(data.events || []);
-    $("reminders").innerHTML = renderItems(data.reminders, 8, true);
     renderMenu(data.menu);
     setPhotos(data.photos || []);
     setSpotify(data.spotify);
@@ -928,7 +907,6 @@
     var t = startOfDay(new Date());
     function at(o, h, m) { var d = new Date(t); d.setDate(d.getDate() + o); d.setHours(h, m || 0); return d.toISOString(); }
     function day(o) { var d = new Date(t); d.setDate(d.getDate() + o); return d.toISOString(); }
-    function due(o) { return dayKey(new Date(t.getTime() + o * 86400000)) + "T00:00:00.000Z"; }
     var C = { familia: "#4fb38b", pessoa1: "#7aa2f7", pessoa2: "#e8768a", pessoa3: "#f2b544" };
     var events = [
       { who: "pessoa3", title: "Natação", start: at(0, 8, 30), end: at(0, 9, 30) },
@@ -941,12 +919,6 @@
       { who: "pessoa2", title: "Consulta médica", start: at(3, 15), end: at(3, 16) },
       { who: "pessoa1", title: "Futebol", start: at(3, 18, 30), end: at(3, 20) }
     ];
-    var reminders = {
-      familia: [{ title: "Pagar conta de luz", due: due(-1) }, { title: "Levar o lixo reciclável", due: due(0) }, { title: "Renovar seguro do carro", due: due(4) }, { title: "Ligar para o encanador" }],
-      pessoa1: [{ title: "Pagar conta de luz", due: due(-1) }, { title: "Renovar seguro do carro", due: due(4) }, { title: "Trocar óleo do carro" }],
-      pessoa2: [{ title: "Comprar presente de aniversário", due: due(0) }, { title: "Agendar vacina", due: due(2) }],
-      pessoa3: [{ title: "Estudar para a prova", due: due(1) }, { title: "Levar a mochila da natação", due: due(0) }, { title: "Arrumar o quarto" }]
-    };
     var names = { familia: "", pessoa1: "Pessoa 1", pessoa2: "Pessoa 2", pessoa3: "Pessoa 3" };
     var p = names.hasOwnProperty(pessoa) ? pessoa : "familia";
     var photo = function (seed) { return { url: "https://picsum.photos/seed/" + seed + "/1280/800", w: 1280, h: 800 }; };
@@ -955,7 +927,6 @@
       name: names[p],
       events: events.filter(function (e) { return p === "familia" || e.who === p || e.who === "familia"; })
                     .map(function (e) { e.color = C[e.who]; return e; }),
-      reminders: reminders[p],
       menu: [
         { weekday: 0, almoco: "Churrasco", jantar: "Sopa de legumes" },
         { weekday: 1, almoco: "Frango grelhado", jantar: "Omelete" },
