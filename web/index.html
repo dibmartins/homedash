@@ -35,12 +35,12 @@
   body { font-family: "Google Sans", Roboto, "Segoe UI", system-ui, sans-serif; font-size: 1.5vw; }
 
   /* coluna da esquerda sobre o preto; a foto fica à direita (margem de segurança para overscan) */
-  #left { position: fixed; left: 2.8vw; top: 3.5vh; bottom: 3vh; width: 33vw; display: flex; flex-direction: column; gap: 1.8vh; }
+  #left { position: fixed; left: 2.8vw; top: 3.5vh; bottom: 3vh; width: 42.2vw; display: flex; flex-direction: column; gap: 1.8vh; }
   body.has-news #left { bottom: calc(6vh + 2.5vh); }
   header { flex: none; }
 
   /* foto de fundo em tela cheia */
-  #bg { position: fixed; top: 0; bottom: 0; right: 0; left: 28vw; z-index: -2; background: var(--bg); }
+  #bg { position: fixed; top: 0; bottom: 0; right: 0; left: 45vw; z-index: -2; background: var(--bg); }
   #bg .layer, #bg video { position: absolute; inset: 0; width: 100%; height: 100%; opacity: 0; transition: opacity 2s ease; }
   #bg .layer.show, #bg video.show { opacity: 1; }
   #bg video { object-fit: contain; background: #000; }
@@ -58,18 +58,18 @@
   #bg.cover .layer .fill { display: none; }
   /* preto à esquerda, com degradê até a foto */
   #shade, #shade2 { position: fixed; inset: 0; z-index: -1; pointer-events: none; transition: opacity 2s ease; }
-  #shade { background: linear-gradient(90deg, var(--bg) 0%, var(--bg) 34%, rgba(17,21,28,0.75) 42%, rgba(17,21,28,0.3) 51%, rgba(17,21,28,0) 60%); }
+  #shade { background: linear-gradient(90deg, var(--bg) 0%, var(--bg) 45%, rgba(17,21,28,0.75) 51%, rgba(17,21,28,0.3) 58%, rgba(17,21,28,0) 65%); }
   /* com duas fotos o degradê é mais curto, para não escurecer a primeira */
-  #shade2 { opacity: 0; background: linear-gradient(90deg, var(--bg) 0, var(--bg) 31vw, rgba(17,21,28,0) 37vw); }
+  #shade2 { opacity: 0; background: linear-gradient(90deg, var(--bg) 0, var(--bg) 45vw, rgba(17,21,28,0) 48vw); }
   body.duo #shade { opacity: 0; }
   body.duo #shade2 { opacity: 1; }
   /* fotos em pé: duas, lado a lado, em molduras de Polaroid levemente tortas */
   #bg .duo { background: radial-gradient(ellipse at 60% 50%, #3a3026, #14110e 75%); }
-  #bg .duo figure { position: absolute; margin: 0; width: 25vw; padding: 1vw 1vw 5vw; background: #fbfaf6;
+  #bg .duo figure { position: absolute; margin: 0; width: 21vw; padding: 0.9vw 0.9vw 4.4vw; background: #fbfaf6;
     box-shadow: 0 1.2vw 2.5vw rgba(0,0,0,0.8); }
   #bg .duo figure img { position: static; display: block; width: 100%; height: auto; aspect-ratio: 3 / 4; object-fit: cover; background: #ddd; }
-  #bg .duo figcaption { position: absolute; left: 0; right: 0; bottom: 1.3vw; text-align: center; color: #444;
-    font: 500 2.2vw/1 Caveat, "Segoe Script", "Comic Sans MS", cursive; }
+  #bg .duo figcaption { position: absolute; left: 0; right: 0; bottom: 1.1vw; text-align: center; color: #444;
+    font: 500 1.9vw/1 Caveat, "Segoe Script", "Comic Sans MS", cursive; }
   .hello { font-size: 1.6vw; color: var(--accent); font-weight: 600; margin-bottom: 0.6vh; }
   #clock { font-size: 5vw; font-weight: 500; line-height: 1; letter-spacing: -0.02em; }
   #date { font-size: 1.6vw; color: #d5dbe5; margin-top: 0.6vh; }
@@ -604,7 +604,7 @@
     var layer = document.createElement("div");
     layer.className = "layer duo";
     var r = function (min, max) { return (min + Math.random() * (max - min)).toFixed(1); };
-    [[a, ia, 12, r(9, 11), -r(2.5, 5)], [b, ib, 39, r(13, 15), r(2, 4)]].forEach(function (x) {
+    [[a, ia, 6, r(14, 16), -r(2.5, 5)], [b, ib, 29, r(18, 20), r(2, 4)]].forEach(function (x) {
       var fig = document.createElement("figure");
       fig.style.left = x[2] + "vw";
       fig.style.top = x[3] + "vh";
