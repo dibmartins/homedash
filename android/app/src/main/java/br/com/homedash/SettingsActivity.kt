@@ -5,6 +5,8 @@ import android.net.Uri
 import android.os.Build
 import android.os.Bundle
 import android.provider.Settings
+import android.text.Editable
+import android.text.TextWatcher
 import android.view.View
 import android.widget.Button
 import android.widget.CheckBox
@@ -46,9 +48,50 @@ class SettingsActivity : AppCompatActivity() {
         val latLon = findViewById<EditText>(R.id.lat_lon).apply { setText(prefs.latLon) }
         val boot = findViewById<CheckBox>(R.id.start_on_boot).apply { isChecked = prefs.startOnBoot }
 
+        // Colar o endereço completo do painel (o mesmo do navegador) preenche todos os campos.
+        val full = findViewById<EditText>(R.id.full_url)
+        fun applyFullUrl(showErrors: Boolean): Boolean {
+            val text = full.text.toString().trim()
+            if (text.isEmpty()) return false
+            val uri = try { Uri.parse(text) } catch (e: Exception) { null }
+            val apiValue = uri?.getQueryParameter("api")
+            val tokenValue = uri?.getQueryParameter("token")
+            if (uri == null || uri.scheme.isNullOrEmpty() || apiValue.isNullOrEmpty() || tokenValue.isNullOrEmpty()) {
+                if (showErrors) Toast.makeText(this, R.string.full_url_invalid, Toast.LENGTH_LONG).show()
+                return false
+            }
+            page.setText(uri.buildUpon().clearQuery().fragment(null).build().toString())
+            api.setText(apiValue)
+            token.setText(tokenValue)
+            uri.getQueryParameter("cidade")?.let { city.setText(it) }
+            val lat = uri.getQueryParameter("lat")
+            val lon = uri.getQueryParameter("lon")
+            if (!lat.isNullOrEmpty() && !lon.isNullOrEmpty()) latLon.setText("$lat, $lon")
+            uri.getQueryParameter("pessoa")?.let { key ->
+                for (i in 0 until group.childCount) {
+                    val rb = group.getChildAt(i) as RadioButton
+                    if (rb.tag == key) rb.isChecked = true
+                }
+            }
+            return true
+        }
+        var lastApplied = ""
+        full.addTextChangedListener(object : TextWatcher {
+            override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
+            override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {}
+            override fun afterTextChanged(s: Editable?) {
+                val now = s?.toString()?.trim() ?: ""
+                if (now != lastApplied && applyFullUrl(false)) {
+                    lastApplied = now
+                    Toast.makeText(this@SettingsActivity, R.string.full_url_ok, Toast.LENGTH_SHORT).show()
+                }
+            }
+        })
+
         findViewById<TextView>(R.id.version).text = getString(R.string.version, BuildConfig.VERSION_NAME)
 
         findViewById<Button>(R.id.save).setOnClickListener {
+            if (full.text.isNotBlank() && !applyFullUrl(true)) return@setOnClickListener
             val checked = group.findViewById<RadioButton>(group.checkedRadioButtonId)
             prefs.profile = (checked?.tag as? String) ?: "familia"
             prefs.pageUrl = page.text.toString().ifBlank { BuildConfig.DEFAULT_PAGE_URL }
@@ -62,7 +105,7 @@ class SettingsActivity : AppCompatActivity() {
             finish()
         }
 
-        group.requestFocus()
+        full.requestFocus()
     }
 
     /** Android 10+ só deixa abrir um app sozinho no boot se ele puder "sobrepor outros apps". */

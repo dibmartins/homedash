@@ -53,7 +53,7 @@ O workflow `.github/workflows/android.yml` gera o APK a cada mudança em `androi
 **Instalar:**
 1. Na TV, instale o app **Downloader** (by AFTVnews) pela Play Store e permita que ele instale apps (Configurações > Segurança > Fontes desconhecidas).
 2. Abra o link do APK da release (ou copie o `painel-da-familia.apk` para um pen drive) e instale.
-3. Abra o **Painel da Família**. Na primeira vez aparece a configuração: escolha o perfil, cole o endereço `/exec` e o token. O app **Google TV** do celular tem um teclado no controle virtual que aceita colar texto.
+3. Abra o **Painel da Família**. Na primeira vez aparece a configuração. O jeito mais fácil: no celular, copie o endereço completo do painel (o mesmo que você usa no navegador, com `pessoa`, `api`, `token` etc.), abra o app **Google TV**, toque no teclado do controle virtual e cole no primeiro campo. O app preenche o resto sozinho; é só conferir e salvar.
 4. Marque "Abrir o painel quando a TV ligar". No Android 10 ou mais novo, o app pede a permissão "Sobrepor a outros apps", necessária para abrir sozinho. Se a TV não mostrar essa tela, ative pelo computador: `adb shell appops set br.com.homedash SYSTEM_ALERT_WINDOW allow`.
 
 **No controle:** as setas para os lados trocam de perfil (família, pessoa 1, 2, 3) e a escolha fica salva. Toque curto no OK recarrega o painel. Segure o OK (ou aperte MENU) para voltar à configuração.
