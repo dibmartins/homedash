@@ -29,6 +29,9 @@ const SHEET_ID = '';
 //  spotify: mostrar o card "Tocando agora" (veja a seção Spotify no README).
 //  news:    sites para a barra de notícias do rodapé, ex.: ['g1.globo.com', { site: 'https://site.com/feed/', name: 'Site' }].
 //           Vazio = sem barra. As manchetes dos sites aparecem misturadas, em ordem aleatória.
+//  lixo:    lembrete de colocar o lixo para fora, ex.: { dias: ['segunda', 'sexta'], hora: '07:30' }.
+//           Aparece na véspera a partir das 17h (mude com vespera: '18:00') e some 30 min depois da
+//           hora da coleta (mude com ate: '08:30'). Sem "lixo", o lembrete não aparece.
 // Troque as chaves e os nomes pelos da sua casa na SUA cópia do script (não no repositório).
 const PROFILES = {
   familia: {
@@ -121,6 +124,7 @@ function doGet(e) {
     photos: safe('fotos', () => getPhotos_(profile.photos || {}), []),
     spotify: !!(profile.spotify && spotifyConfigured_()),
     news: (profile.news && profile.news.length) ? safe('notícias', () => getNews_(profile.news), []) : [],
+    trash: profile.lixo || null,
     warnings: warnings,
     updated: new Date().toISOString(),
   });

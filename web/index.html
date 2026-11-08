@@ -135,6 +135,16 @@
   .menu-row .m small { color: var(--muted); font-size: 1.1vw; display: inline-block; width: 4.6vw; }
 
   .hidden { display: none !important; }
+
+  /* lembrete do lixo: aparece na véspera e na manhã da coleta */
+  #trash { flex: none; display: flex; align-items: center; gap: 1.1vw; padding: 1.5vh 1.3vw; border-radius: 1.1vw;
+    background: rgba(242, 181, 68, 0.13); border: 1px solid rgba(242, 181, 68, 0.45); }
+  #trash svg { width: 3vw; height: 3vw; flex: none; fill: none; stroke: var(--accent); stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+  #trash .t1 { font-size: 1.75vw; font-weight: 700; line-height: 1.2; }
+  #trash .t2 { font-size: 1.3vw; color: #e6dcc6; margin-top: 0.3vh; line-height: 1.3; }
+  #trash.today { background: var(--accent); border-color: var(--accent); color: #1b1607; text-shadow: none; }
+  #trash.today svg { stroke: #1b1607; }
+  #trash.today .t2 { color: #3a2f12; }
   #status { position: fixed; right: 1vw; bottom: 0.6vh; font-size: 0.85vw; color: rgba(255, 255, 255, 0.45); }
 
   /* barra de notícias no rodapé */
@@ -229,6 +239,67 @@
     $("date").textContent = WEEK[now.getDay()] + ", " + now.getDate() + " de " + MONTHS[now.getMonth()];
     var greet = h < 5 ? "Boa noite" : h < 12 ? "Bom dia" : h < 18 ? "Boa tarde" : "Boa noite";
     $("hello").textContent = greet + (profileName ? ", " + profileName : "");
+    if (now.getSeconds() === 0) updateTrash();
+  }
+
+  // ---------- lembrete do lixo ----------
+  // trash: { dias: ['segunda', 'sexta'], hora: '07:30', vespera: '17:00', ate: '08:00' } (vespera e ate são opcionais)
+  var trashCfg = null, trashKey = "";
+  function toMin(s, def) {
+    var m = /^(\d{1,2})(?:[:h](\d{2}))?$/.exec(String(s == null ? "" : s).trim());
+    return m ? (+m[1]) * 60 + (+(m[2] || 0)) : def;
+  }
+  function fmtHour(min) { var h = Math.floor(min / 60), m = min % 60; return h + "h" + (m ? pad(m) : ""); }
+  function weekdayIdx(d) {
+    if (typeof d === "number") return d >= 0 && d <= 6 ? d : -1;
+    var s = String(d).toLowerCase().trim().slice(0, 3).replace("á", "a").replace("ç", "c");
+    return ["dom", "seg", "ter", "qua", "qui", "sex", "sab"].indexOf(s);
+  }
+  function setTrash(cfg) {
+    trashCfg = null;
+    if (cfg && cfg.dias) {
+      var dias = [].concat(cfg.dias).map(weekdayIdx).filter(function (d) { return d >= 0; });
+      var hora = toMin(cfg.hora, 7 * 60 + 30);
+      if (dias.length) trashCfg = { dias: dias, hora: hora, vespera: toMin(cfg.vespera, 17 * 60), ate: toMin(cfg.ate, hora + 30) };
+    }
+    trashKey = "";
+    updateTrash();
+  }
+  // "amanha" na véspera (a partir de "vespera"), "hoje" no dia (até "ate"), ou null
+  function trashState(cfg, now) {
+    if (!cfg) return null;
+    var wd = now.getDay(), min = now.getHours() * 60 + now.getMinutes();
+    if (cfg.dias.indexOf(wd) !== -1 && min < cfg.ate) return { when: "hoje", late: min >= cfg.hora };
+    if (cfg.dias.indexOf((wd + 1) % 7) !== -1 && min >= cfg.vespera) return { when: "amanha" };
+    return null;
+  }
+  var TRASH_ICON = '<svg viewBox="0 0 24 24"><path d="M3 6h18M8 6V4h8v2M5.5 6l1 14h11l1-14M10 10v6M14 10v6"/></svg>';
+  function updateTrash() {
+    var st = trashState(trashCfg, new Date());
+    var key = st ? st.when + (st.late ? "-late" : "") : "";
+    if (key === trashKey) return;
+    trashKey = key;
+    var el = $("trash");
+    if (!st) { if (el) { el.parentNode.removeChild(el); fitAll(); } return; }
+    if (!el) {
+      el = document.createElement("div");
+      el.id = "trash";
+      $("left").insertBefore(el, $("panel"));
+    }
+    var hour = fmtHour(trashCfg.hora), t1, t2;
+    if (st.when === "amanha") {
+      t1 = "Amanhã cedo tem coleta de lixo";
+      t2 = "Coloque o lixo para fora hoje à noite. O caminhão passa por volta das " + hour + ".";
+    } else if (!st.late) {
+      t1 = "Hoje tem coleta de lixo!";
+      t2 = "O caminhão passa por volta das " + hour + ". Já colocou o lixo para fora?";
+    } else {
+      t1 = "O caminhão do lixo está passando";
+      t2 = "Se o lixo ainda não está lá fora, ainda dá tempo!";
+    }
+    el.className = st.when === "hoje" ? "today" : "";
+    el.innerHTML = TRASH_ICON + '<div><div class="t1">' + esc(t1) + '</div><div class="t2">' + esc(t2) + "</div></div>";
+    fitAll(); // o card de baixo ficou menor
   }
 
   // ---------- agenda ----------
@@ -768,6 +839,7 @@
     setPhotos(data.photos || []);
     setSpotify(data.spotify);
     setNews(data.news);
+    setTrash(data.trash);
     if (data.spotifyDemo) { np = Object.assign({ at: Date.now() }, data.spotifyDemo); renderNowPlaying(); }
     refreshPanel();
     lastOk = Date.now();
@@ -829,6 +901,7 @@
         { source: "Economia", title: "Inflação do mês vem abaixo do esperado" }
       ],
       spotifyDemo: { playing: true, title: "Nome da música", artist: "Artista", image: null, progressMs: 95000, durationMs: 210000 },
+      trash: { dias: ["segunda", "sexta"], hora: "07:30" },
       demo: true
     };
   }
