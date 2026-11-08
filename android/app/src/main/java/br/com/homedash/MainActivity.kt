@@ -97,6 +97,20 @@ class MainActivity : AppCompatActivity() {
         web.loadUrl(loadedUrl!!)
     }
 
+    // setas para os lados no controle: passa para o perfil seguinte/anterior e já guarda a escolha
+    private var lastSwitch = 0L
+    private fun switchProfile(step: Int) {
+        val now = System.currentTimeMillis()
+        if (now - lastSwitch < 600) return // segurar a seta não fica trocando sem parar
+        lastSwitch = now
+        val keys = Prefs.PROFILES.keys.toList()
+        val i = keys.indexOf(prefs.profile).let { if (it < 0) 0 else it }
+        val next = keys[(i + step + keys.size) % keys.size]
+        prefs.profile = next
+        reload()
+        Toast.makeText(this, "◀  " + Prefs.PROFILES[next] + "  ▶", Toast.LENGTH_SHORT).show()
+    }
+
     private fun scheduleRetry() {
         handler.removeCallbacks(retry)
         handler.postDelayed(retry, 30_000)
@@ -127,6 +141,8 @@ class MainActivity : AppCompatActivity() {
                 openSettings()
                 return true
             }
+            KeyEvent.KEYCODE_DPAD_RIGHT -> { switchProfile(+1); return true }
+            KeyEvent.KEYCODE_DPAD_LEFT -> { switchProfile(-1); return true }
         }
         return super.onKeyDown(keyCode, event)
     }
