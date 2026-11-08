@@ -121,6 +121,10 @@ Mostra a capa, a música e o artista do que está tocando na sua conta do Spotif
 
 No perfil, preencha `news` com os sites, por exemplo `news: ['g1.globo.com', { site: 'https://site.com/feed/', name: 'Site' }]`. O script usa o feed RSS que o site anuncia e, se não achar, as manchetes do site no Google Notícias. As manchetes passam no rodapé, misturadas em ordem aleatória, e são atualizadas a cada 30 minutos. Com `news` vazio, a barra não aparece.
 
+## 8. Lembrete do lixo (opcional)
+
+No perfil, preencha `lixo` com os dias e a hora da coleta, por exemplo `lixo: { dias: ['segunda', 'sexta'], hora: '07:30' }`. Na véspera, a partir das 17h, aparece um aviso acima do card ("Amanhã cedo tem coleta de lixo"); no dia da coleta, da meia-noite até 30 minutos depois da hora, o aviso fica em destaque. Para mudar esses horários, use `vespera: '18:00'` e `ate: '08:30'`. Depois de mudar o script, publique uma nova versão.
+
 ## Fotos e vídeos do álbum
 
 As fotos aparecem inteiras, sem cortes, no tamanho real da tela; nas laterais fica a mesma foto desfocada. Para a foto preencher a tela toda (cortando as bordas), acrescente `&fundo=cobrir` ao endereço do painel.
