@@ -44,6 +44,8 @@
   #bg .layer, #bg video { position: absolute; inset: 0; width: 100%; height: 100%; opacity: 0; transition: opacity 2s ease; }
   #bg .layer.show, #bg video.show { opacity: 1; }
   #bg video { object-fit: contain; background: #000; }
+  /* app da TV: o vídeo toca no player do Android, por trás da página, que fica transparente ali */
+  .nv, .nv body, .nv #bg { background: transparent !important; }
   /* foto inteira no centro; nas laterais, a mesma foto bem pequena, ampliada e desfocada */
   #bg .layer img { position: absolute; inset: 0; width: 100%; height: 100%; }
   #bg .layer .main { object-fit: contain; }
@@ -412,6 +414,7 @@
     var box = $("bg");
     box.appendChild(el);
     document.body.classList.toggle("duo", el.classList.contains("duo"));
+    if (el.classList.contains("nv")) document.documentElement.classList.add("nv");
     requestAnimationFrame(function () { requestAnimationFrame(function () { el.classList.add("show"); }); });
     var old = box.children;
     setTimeout(function () {
@@ -419,6 +422,11 @@
         var f = box.firstChild;
         if (f.tagName === "VIDEO") releaseVideo(f);
         f.remove();
+      }
+      // o vídeo nativo saiu de cena: para o player e volta o fundo
+      if (NATIVE && !box.querySelector(".nv") && document.documentElement.classList.contains("nv")) {
+        document.documentElement.classList.remove("nv");
+        NATIVE.stop();
       }
     }, 2200);
   }
@@ -454,8 +462,32 @@
       v.load();
     });
   }
+  // No app da TV, o vídeo é baixado e tocado pelo próprio Android, que decodifica por hardware
+  // e não engasga como o player da página.
+  var NATIVE = !IS_CAST && window.HomeDashTV ? window.HomeDashTV : null;
+  var nativeWait = {}, nativePlay = null;
+  window.__nativeVideo = function (url, state) {
+    if (state === "ready" || (state === "error" && nativeWait[url])) {
+      var w = nativeWait[url];
+      delete nativeWait[url];
+      if (w) (state === "ready" ? w.ok : w.fail)();
+      return;
+    }
+    if (nativePlay && nativePlay.url === url) nativePlay.cb(state);
+  };
+  function nativePrepare(url) {
+    return new Promise(function (ok, fail) {
+      nativeWait[url] = { ok: function () { ok(url); }, fail: function () { fail(new Error("vídeo não baixou")); } };
+      NATIVE.prepare(url);
+    });
+  }
   function prepareVideo(p) {
     if (videoPrep[p.video]) return videoPrep[p.video];
+    if (NATIVE) {
+      var hdUrl = p.video.replace(/=dv$/, "=m37");
+      videoPrep[p.video] = nativePrepare(hdUrl).catch(function () { return nativePrepare(p.video); });
+      return videoPrep[p.video];
+    }
     var hd = p.video.replace(/=dv$/, "=m37"); // versão 1080p do Google Fotos, mais leve que o original
     var pr = fetchVideoBlob(hd).catch(function () { return fetchVideoBlob(p.video); }).then(function (blobUrl) {
       return bufferVideo(blobUrl, 30000).then(function (v) { v._blob = blobUrl; return v; },
@@ -476,6 +508,29 @@
     // se em 4 minutos não ficou pronto, mostra o primeiro quadro como foto
     clearTimeout(photoTimer);
     photoTimer = setTimeout(function () { gaveUp = true; delete videoPrep[p.video]; showStill(p); }, 4 * 60 * 1000);
+    if (NATIVE) {
+      prepareVideo(p).then(function (src) {
+        delete videoPrep[p.video];
+        if (gaveUp || gen !== bgGen) return;
+        var started = false;
+        nativePlay = { url: src, cb: function (state) {
+          if (gen !== bgGen) return;
+          if (state === "playing" && !started) {
+            started = true;
+            var l = document.createElement("div");
+            l.className = "layer nv";
+            showLayer(l);
+          } else if (state === "ended") scheduleNext(0);
+          else if (state === "error") { if (started) scheduleNext(0); else showStill(p); }
+        } };
+        NATIVE.play(src, $("bg").getBoundingClientRect().left / window.innerWidth);
+        scheduleNext(125 * 1000); // no máximo ~2 minutos por vídeo
+      }, function () {
+        delete videoPrep[p.video];
+        if (!gaveUp && gen === bgGen) showStill(p);
+      });
+      return;
+    }
     prepareVideo(p).then(function (v) {
       delete videoPrep[p.video];
       if (gaveUp || gen !== bgGen) { releaseVideo(v); return; }
