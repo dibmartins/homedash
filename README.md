@@ -60,7 +60,7 @@ O workflow `.github/workflows/android.yml` gera o APK a cada mudança em `androi
 3. Abra o **Painel da Família**. Na primeira vez aparece a configuração: escolha o perfil, cole o endereço `/exec` e o token. O app **Google TV** do celular tem um teclado no controle virtual que aceita colar texto.
 4. Marque "Abrir o painel quando a TV ligar". No Android 10 ou mais novo, o app pede a permissão "Sobrepor a outros apps", necessária para abrir sozinho. Se a TV não mostrar essa tela, ative pelo computador: `adb shell appops set br.com.homedash SYSTEM_ALERT_WINDOW allow`.
 
-**No controle:** toque curto no OK recarrega o painel. Segure o OK (ou aperte MENU) para voltar à configuração.
+**No controle:** as setas para os lados trocam de perfil (família, pessoa 1, 2, 3) e a escolha fica salva. Toque curto no OK recarrega o painel. Segure o OK (ou aperte MENU) para voltar à configuração.
 
 **Assinatura:** para que cada versão nova instale por cima da anterior, cadastre os segredos `HOMEDASH_KEYSTORE_BASE64`, `HOMEDASH_KEYSTORE_PASSWORD`, `HOMEDASH_KEY_ALIAS` e `HOMEDASH_KEY_PASSWORD` em **Settings > Secrets and variables > Actions**. Sem eles, o APK sai com a chave de debug.
 
