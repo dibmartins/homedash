@@ -19,7 +19,7 @@
     fundo   "cobrir" para a foto preencher a tela toda (corta as bordas); sem ele, a foto aparece inteira
     universo fundo animado atrás da coluna da esquerda: estrelas, nebulosa, galaxia, constelacoes ou 0 (desliga).
             Liga sozinho (estrelas) só no app da TV; no navegador, só se for pedido aqui; no Chromecast, nunca.
-    cinema  visual dos filmes em cartaz (no lugar de uma foto, a cada 3): a (destaque), b (cartazes), c (letreiro) ou alternar; 0 desliga
+    cinema  0 desliga os filmes em cartaz (que aparecem no lugar de uma foto, a cada 3)
   Sem "api", o painel mostra dados de exemplo.
 -->
 <style>
@@ -194,12 +194,15 @@
   .lite body.has-news #left { bottom: calc(8.8vh + 2.5vh); }
 
   /* ---------- cinema: filmes em cartaz, no lugar da foto ---------- */
+  /* começa transparente na borda e escurece aos poucos, como o degradê da foto, para emendar com a coluna da esquerda */
   #cine { position: fixed; left: 45vw; right: 0; top: 0; bottom: 0; z-index: 1; overflow: hidden; background: #0a0a0c;
+    -webkit-mask-image: linear-gradient(90deg, transparent 0, #000 9%); mask-image: linear-gradient(90deg, transparent 0, #000 9%);
     opacity: 0; transition: opacity 1.5s ease; text-shadow: none; color: #f4f4f6; }
   #cine.show { opacity: 1; }
   body.has-news #cine { bottom: 6vh; }
   .lite body.has-news #cine { bottom: 8.8vh; }
-  body.cine #verse { opacity: 0; }
+  body.cine #verse, body.cine #bg { opacity: 0; }
+  #bg { transition: opacity 1.5s ease; }
   #verse { transition: opacity 1.5s ease; }
   #cine .bb { font-family: "Bebas Neue", Impact, "Arial Narrow", sans-serif; font-weight: 400; letter-spacing: 0.02em; }
   /* cartaz: a imagem cobre o título; sem imagem, fica o título sobre um degradê */
@@ -218,35 +221,13 @@
   #cine .ss.next { background: #e50914; border-color: #e50914; color: #fff; }
   #cine .ss.next i { color: #ffd9db; }
   #cine .chips { display: flex; flex-wrap: wrap; gap: 0.5vw; }
-  #cine .chead { display: flex; align-items: baseline; gap: 1.2vw; }
-  #cine .brand { color: #e50914; font-size: 3.2vw; line-height: 0.9; }
-  #cine .cname { font-size: 1.25vw; font-weight: 600; color: #e9e9ee; letter-spacing: 0.04em; }
-  #cine .cday { margin-left: auto; font-size: 1.15vw; color: #9ca1ad; text-transform: uppercase; letter-spacing: 0.12em; font-weight: 600; }
-
-  /* a: destaque (um filme grande, os outros numa fileira) */
-  .ca { position: absolute; inset: 0; padding: 4vh 3vw 3.5vh 3.5vw; display: flex; flex-direction: column; }
-  .ca .cbg { position: absolute; inset: -4vw; background-size: cover; background-position: center 30%; filter: blur(2.2vw) brightness(0.42) saturate(1.2); z-index: -1; }
-  .ca::after { content: ""; position: absolute; inset: 0; z-index: -1; background: linear-gradient(0deg, #0a0a0c 0%, rgba(10,10,12,0.75) 32%, rgba(10,10,12,0.2) 70%, rgba(10,10,12,0.55) 100%); }
-  .lite .ca .cbg { filter: brightness(0.3); }
-  .ca .feat { flex: 1 1 0; min-height: 0; display: flex; gap: 2.2vw; align-items: center; margin: 2.5vh 0 2vh; }
-  .ca .feat .pst { flex: none; height: 100%; max-height: 50vh; aspect-ratio: 2 / 3; border-radius: 0.7vw; }
-  .ca .info { flex: 1; min-width: 0; }
-  .ca .tag { font-size: 1vw; font-weight: 700; letter-spacing: 0.2em; color: #e50914; text-transform: uppercase; }
-  .ca h1 { font-size: 4.2vw; line-height: 0.95; margin: 0.6vh 0 1.2vh; }
-  #cine .ca .meta { font-size: 1.3vw; white-space: normal; line-height: 1.5; }
-  .ca .syn { margin: 1.6vh 0 2.2vh; font-size: 1.2vw; line-height: 1.4; color: #d6d8de; display: -webkit-box; -webkit-line-clamp: 4; -webkit-box-orient: vertical; overflow: hidden; }
-  .ca .chips { font-size: 1.45vw; }
-  .ca .rl { font-size: 1vw; font-weight: 700; letter-spacing: 0.16em; color: #c9ccd4; text-transform: uppercase; margin-bottom: 1.2vh; }
-  .ca .row { display: flex; gap: 1.1vw; }
-  .ca .mini { width: 7.1vw; flex: none; }
-  .ca .mini .pst { width: 100%; aspect-ratio: 2 / 3; border-radius: 0.4vw; }
-  .ca .mini .pst b { font-size: 1vw; }
-  .ca .mini .t { font-size: 0.95vw; font-weight: 600; margin-top: 0.8vh; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-  .ca .mini .n { font-size: 0.9vw; color: #e50914; font-weight: 700; margin-top: 0.2vh; }
+  #cine .chead { display: flex; align-items: center; gap: 1.2vw; min-height: 3.2vw; }
+  #cine .brand { flex: none; white-space: nowrap; color: #e50914; font-size: 3.2vw; line-height: 0.9; }
+  #cine .cname { flex: 1 1 auto; font-size: 1.5vw; font-weight: 500; color: #e9e9ee; min-width: 0; line-height: 1.15; }
 
   /* b: parede de cartazes, 4 por linha */
-  .cb { position: absolute; inset: 0; padding: 4vh 2.6vw 3vh 3.2vw; display: flex; flex-direction: column;
-    background: radial-gradient(ellipse at 50% -20%, #2a0a0d, #0a0a0c 65%); }
+  .cb { position: absolute; inset: 0; padding: 4vh 2.6vw 3vh 5vw; display: flex; flex-direction: column;
+    background: radial-gradient(ellipse at 60% -20%, #2a0a0d, #11151c 65%); }
   .cb .grid { flex: 1 1 0; min-height: 0; display: grid; grid-template-columns: repeat(4, 1fr); grid-template-rows: repeat(2, 1fr); gap: 2.4vh 1.3vw; margin-top: 2.4vh; }
   /* até 4 filmes: uma linha só, com cartazes do mesmo tamanho, no meio da tela */
   .cb .grid.one { grid-template-rows: calc(50% - 1.2vh); align-content: center; }
@@ -255,30 +236,10 @@
   .cb .cell .pst .rt { position: absolute; z-index: 2; top: 0.6vw; right: 0.6vw; font-size: 0.95vw; box-shadow: 0 0.2vw 0.5vw rgba(0,0,0,0.5); }
   .cb .t { font-size: 1.15vw; font-weight: 700; margin-top: 0.9vh; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .cb .meta { font-size: 0.92vw; margin-top: 0.2vh; }
-  .cb .chips { font-size: 0.95vw; gap: 0.35vw; margin-top: 0.8vh; flex-wrap: nowrap; overflow: hidden; }
+  #cine .cb .chips { font-size: 0.88vw; gap: 0.35vw; margin-top: 0.8vh; flex-wrap: nowrap; overflow: hidden; }
   .cb .ss { padding: 0.25em 0.4em; }
-  .cb .pg2 { font-size: 1vw; color: #9ca1ad; letter-spacing: 0.1em; }
+  .cb .pg2 { margin-left: auto; font-size: 1vw; color: #9ca1ad; letter-spacing: 0.1em; }
 
-  /* c: letreiro de cinema com lâmpadas e a lista de sessões */
-  .cc { position: absolute; inset: 0; padding: 3.5vh 2.6vw 3vh 3.2vw; display: flex; flex-direction: column; background: #0d0b0a; }
-  .cc .marq { flex: none; position: relative; text-align: center; padding: 3.4vh 2vw 3.2vh; border-radius: 0.8vw;
-    background: linear-gradient(#2b0d0d, #170606); border: 0.25vw solid #6b1d16;
-    box-shadow: inset 0 0 2vw rgba(0,0,0,0.8), 0 0 2.5vw rgba(229,9,20,0.25); }
-  .cc .marq::before { content: ""; position: absolute; inset: 0.55vw; border-radius: 0.5vw; pointer-events: none;
-    background: radial-gradient(circle, #ffe7a3 0 0.22vw, rgba(255,200,90,0.35) 0.32vw, transparent 0.42vw) 0 0 / 1.6vw 1.6vw;
-    -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0); -webkit-mask-composite: xor; mask-composite: exclude; padding: 0.9vw; }
-  .cc .marq .big { font-size: 4.4vw; line-height: 0.9; color: #fff3d6; text-shadow: 0 0 1vw rgba(255,190,80,0.75), 0 0 0.2vw #ffcf73; letter-spacing: 0.08em; }
-  .cc .marq .sub { font-size: 1.05vw; letter-spacing: 0.3em; text-transform: uppercase; color: #f0b44c; font-weight: 700; margin-top: 0.6vh; }
-  .cc .list { flex: 1 1 0; min-height: 0; display: flex; flex-direction: column; margin-top: 2vh; }
-  .cc .it { flex: 1 1 0; max-height: 13vh; min-height: 0; display: flex; align-items: center; gap: 1.2vw; border-bottom: 1px solid rgba(255,255,255,0.08); padding: 0.6vh 0; }
-  .cc .it .pst { flex: none; height: 88%; aspect-ratio: 2 / 3; border-radius: 0.3vw; }
-  .cc .it .pst b { font-size: 0.7vw; }
-  .cc .it .tx { flex: 1; min-width: 0; }
-  .cc .it .t { font-size: 1.45vw; font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-  .cc .it .meta { font-size: 0.98vw; margin-top: 0.25vh; }
-  .cc .it .chips { flex: none; font-size: 1.12vw; gap: 0.4vw; flex-wrap: nowrap; }
-  #cine .cc .ss.next { background: #f0b44c; border-color: #f0b44c; color: #1c1206; }
-  #cine .cc .ss.next i { color: #4a3510; }
 </style>
 </head>
 <body>
@@ -1077,57 +1038,24 @@
     return '<span class="ss' + (x.past ? " past" : "") + (x.next ? " next" : "") + '">' + hm(x.at) +
       (x.v || x.f ? "<i>" + esc([x.v, x.f].filter(Boolean).join(" ")) + "</i>" : "") + "</span>";
   }
-  function dayLabel(d) {
-    return d.when + " · " + WEEK[d.day.getDay()] + ", " + d.day.getDate() + " de " + MONTHS[d.day.getMonth()];
-  }
+  // "Em cartaz" e, ao lado, o nome do cinema como está no script (ex.: "No Cinema do Centro")
   function head(c, d, extra) {
-    return '<div class="chead"><span class="brand bb">Em cartaz</span><span class="cname">' + esc(c.name || "") + "</span>" +
-      '<span class="cday">' + esc(dayLabel(d)) + "</span>" + (extra || "") + "</div>";
+    return '<div class="chead"><span class="brand bb">' + (d.when === "hoje" ? "Em cartaz" : "Em cartaz amanhã") + '</span><span class="cname">' +
+      esc(c.name || "") + "</span>" + (extra || "") + "</div>";
   }
-  var CINE_LAYOUTS = {
-    // destaque: um filme grande (troca a cada vez) e os outros numa fileira
-    a: function (c, d) {
-      var list = d.list, f = list[cineTurn % list.length], rest = list.filter(function (r) { return r !== f; }).slice(0, 6);
-      return '<div class="ca">' + (f.m.poster ? '<div class="cbg" style="background-image:url(&quot;' + esc(f.m.poster) + '&quot;)"></div>' : "") +
-        head(c, d) +
-        '<div class="feat">' + poster(f.m) + '<div class="info"><div class="tag">' + (d.when === "hoje" ? "Hoje no cinema" : "Amanhã no cinema") + "</div>" +
-        '<h1 class="bb">' + esc(f.m.title) + '</h1><div class="meta">' + meta(f.m, { genres: 3 }) + "</div>" +
-        (f.m.synopsis ? '<div class="syn">' + esc(f.m.synopsis) + "</div>" : '<div style="height:2vh"></div>') +
-        '<div class="chips">' + f.s.map(chip).join("") + "</div></div></div>" +
-        (rest.length ? '<div class="rl">Também em cartaz</div><div class="row">' + rest.map(function (r) {
-          return '<div class="mini">' + poster(r.m) + '<div class="t">' + esc(r.m.title) + '</div><div class="n">' + hm(r.next.at) +
-            (r.next.v ? " " + esc(r.next.v) : "") + "</div></div>";
-        }).join("") + "</div>" : "") + "</div>";
-    },
-    // parede de cartazes: até 8 por vez; com mais filmes, alterna as páginas
-    b: function (c, d) {
-      var per = 8, pages = Math.ceil(d.list.length / per), pg = cineTurn % pages;
-      var items = d.list.slice(pg * per, pg * per + per);
-      return '<div class="cb">' + head(c, d, pages > 1 ? '<span class="pg2">' + (pg + 1) + "/" + pages + "</span>" : "") +
-        '<div class="grid' + (items.length > 4 ? "" : " one") + '">' + items.map(function (r) {
-          var p = poster(r.m).replace(/<\/div>$/, rating(r.m) + "</div>");
-          return '<div class="cell">' + p + '<div class="t">' + esc(r.m.title) + '</div><div class="meta">' + meta(r.m, { genres: 1, noRating: true }) +
-            '</div><div class="chips">' + r.s.filter(function (x) { return !x.past; }).slice(0, 3).map(chip).join("") + "</div></div>";
-        }).join("") + "</div></div>";
-    },
-    // letreiro: lâmpadas no alto e a lista de filmes com os horários
-    c: function (c, d) {
-      var per = 8, pages = Math.ceil(d.list.length / per), pg = cineTurn % pages;
-      var items = d.list.slice(pg * per, pg * per + per);
-      return '<div class="cc"><div class="marq"><div class="big bb">Em cartaz ' + (d.when === "hoje" ? "hoje" : "amanhã") + "</div>" +
-        '<div class="sub">' + esc((c.name ? c.name + " · " : "") + WEEK[d.day.getDay()] + ", " + d.day.getDate() + " de " + MONTHS[d.day.getMonth()]) +
-        (pages > 1 ? " · " + (pg + 1) + "/" + pages : "") + "</div></div>" +
-        '<div class="list">' + items.map(function (r) {
-          return '<div class="it">' + poster(r.m) + '<div class="tx"><div class="t">' + esc(r.m.title) + '</div><div class="meta">' + meta(r.m) +
-            '</div></div><div class="chips">' + r.s.map(chip).join("") + "</div></div>";
-        }).join("") + "</div></div>";
-    }
-  };
+  // parede de cartazes: até 8 por vez; com mais filmes, alterna as páginas a cada vez
+  function cineHtml(c, d) {
+    var per = 8, pages = Math.ceil(d.list.length / per), pg = cineTurn % pages;
+    var items = d.list.slice(pg * per, pg * per + per);
+    return '<div class="cb">' + head(c, d, pages > 1 ? '<span class="pg2">' + (pg + 1) + "/" + pages + "</span>" : "") +
+      '<div class="grid' + (items.length > 4 ? "" : " one") + '">' + items.map(function (r) {
+        var p = poster(r.m).replace(/<\/div>$/, rating(r.m) + "</div>");
+        return '<div class="cell">' + p + '<div class="t">' + esc(r.m.title) + '</div><div class="meta">' + meta(r.m, { genres: 1, noRating: true }) +
+          '</div><div class="chips">' + r.s.filter(function (x) { return !x.past; }).slice(0, 2).map(chip).join("") + "</div></div>";
+      }).join("") + "</div></div>";
+  }
   function showCine() {
     var c = lastData.cinema, d = cineDayList(c, new Date());
-    var want = CINE_PARAM || String(c.layout || "").toLowerCase();
-    if (want === "alternar") want = "abc".charAt(cineTurn % 3);
-    var layout = CINE_LAYOUTS[want] || CINE_LAYOUTS.a;
     bgGen++; // cancela vídeo que ainda estava carregando
     if (NATIVE && document.documentElement.classList.contains("nv")) {
       NATIVE.stop();
@@ -1136,7 +1064,7 @@
     }
     clearTimeout(cineHideTimer);
     var el = $("cine");
-    el.innerHTML = layout(c, d);
+    el.innerHTML = cineHtml(c, d);
     el.classList.remove("hidden");
     cineOn = true;
     cineTurn++;
@@ -1234,7 +1162,7 @@
       trash: { dias: ["segunda", "sexta"], hora: "07:30" },
       gospel: { ref: "Mt 25,1-13", day: "Exemplo: Domingo do Tempo Comum", text: "Naquele tempo, disse Jesus a seus discípulos esta parábola: “O Reino dos Céus é semelhante a dez virgens que, tomando as suas lâmpadas, saíram ao encontro do esposo. Cinco delas eram imprudentes, e cinco, prudentes. As imprudentes, tomando as suas lâmpadas, não levaram azeite consigo. As prudentes, porém, levaram azeite em suas vasilhas, com as lâmpadas. E, tardando o esposo, cochilaram todas e adormeceram. Mas à meia-noite ouviu-se um clamor: ‘Aí vem o esposo! Saí ao seu encontro!’ Então todas aquelas virgens se levantaram e prepararam as suas lâmpadas. E as imprudentes disseram às prudentes: ‘Dai-nos do vosso azeite, porque as nossas lâmpadas se apagam’. Mas as prudentes responderam: ‘Não seja caso que nos falte a nós e a vós; ide antes aos que o vendem e comprai-o para vós’. E, tendo elas ido comprá-lo, chegou o esposo, e as que estavam preparadas entraram com ele para as bodas, e fechou-se a porta. E depois chegaram também as outras virgens, dizendo: ‘Senhor, Senhor, abre-nos!’ E ele, respondendo, disse: ‘Em verdade vos digo que vos não conheço’. Vigiai, pois, porque não sabeis o dia nem a hora”." },
       cinema: {
-        name: "Cinema do bairro",
+        name: "No Cinema do Bairro",
         movies: [
           { title: "A Grande Aventura", genres: ["Animação", "Aventura"], runtime: 98, rating: "L",
             synopsis: "Uma turma de amigos atravessa a floresta encantada para devolver uma estrela ao céu antes do amanhecer.",

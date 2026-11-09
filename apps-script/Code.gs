@@ -69,9 +69,9 @@ const GOSPEL_API = 'https://liturgia.up.railway.app/v2/';
 // Filmes em cartaz de um cinema, com horários, gênero, duração, classificação e cartaz, lidos do AdoroCinema.
 // code: o trecho do endereço da programação do cinema no AdoroCinema, ex.:
 //       adorocinema.com/programacao/cinema-X0000/  ->  code: 'X0000'.  Vazio = sem filmes.
-// name: nome exibido no painel. layout: 'a' (destaque), 'b' (cartazes), 'c' (letreiro) ou 'alternar'.
+// name: texto ao lado de "Em cartaz", ex.: 'No Cinema do Centro'.
 // A tela de filmes aparece no lugar de uma foto de vez em quando. Para desligar num perfil, use cinema: false nele.
-const CINEMA = { code: '', name: '', layout: 'a' };
+const CINEMA = { code: '', name: '' };
 
 function doGet(e) {
   const p = (e && e.parameter) || {};
@@ -171,7 +171,7 @@ function getCinema_() {
     cinemaDay_(day, off === 0).forEach(r => cinemaAdd_(movies, order, r));
   });
   order.forEach(id => delete movies[id].brazilian);
-  const out = { name: CINEMA.name || '', layout: CINEMA.layout || 'a', movies: order.map(id => movies[id]) };
+  const out = { name: CINEMA.name || '', movies: order.map(id => movies[id]) };
   try { cache.put(key, JSON.stringify(out), out.movies.length ? 3 * 3600 : 600); } catch (err) {}
   return out;
 }
