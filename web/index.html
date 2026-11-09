@@ -233,6 +233,8 @@
   /* até 4 filmes: uma linha só, com cartazes do mesmo tamanho, no meio da tela */
   .cb .grid.one { grid-template-rows: calc(50% - 1.2vh); align-content: center; }
   .cb .cell { display: flex; flex-direction: column; min-height: 0; min-width: 0; }
+  /* filme sem mais sessões hoje: fica mais apagado */
+  .cb .cell.done { opacity: 0.5; }
   .cb .cell .pst { flex: 1 1 0; min-height: 0; border-radius: 0.5vw; }
   .cb .cell .pst .rt { position: absolute; z-index: 2; top: 0.6vw; right: 0.6vw; font-size: 0.95vw; box-shadow: 0 0.2vw 0.5vw rgba(0,0,0,0.5); }
   .cb .t { font-size: 1.15vw; font-weight: 700; margin-top: 0.9vh; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
@@ -998,11 +1000,16 @@
         s.forEach(function (x) { x.past = x.at < now; if (!x.past && !next) next = x; });
         if (next) next.next = true;
         return { m: m, s: s, next: next };
-      }).filter(function (r) { return r.next; })
-        .sort(function (a, b) { return a.next.at - b.next.at; });
+      }).filter(function (r) { return r.s.length; })
+        // primeiro os que ainda têm sessão, pela próxima; depois os que já passaram, pela última
+        .sort(function (a, b) {
+          if (!!a.next !== !!b.next) return a.next ? -1 : 1;
+          return a.next ? a.next.at - b.next.at : b.s[b.s.length - 1].at - a.s[a.s.length - 1].at;
+        });
     }
+    // todos os filmes do dia, mesmo os que já passaram; depois da última sessão do dia, os de amanhã
     var list = on(today);
-    if (list.length) return { when: "hoje", day: today, list: list };
+    if (list.some(function (r) { return r.next; })) return { when: "hoje", day: today, list: list };
     list = on(tomorrow);
     return { when: "amanhã", day: tomorrow, list: list };
   }
@@ -1039,6 +1046,13 @@
     return '<span class="ss' + (x.past ? " past" : "") + (x.next ? " next" : "") + '">' + hm(x.at) +
       (x.v || x.f ? "<i>" + esc([x.v, x.f].filter(Boolean).join(" ")) + "</i>" : "") + "</span>";
   }
+  // dois horários: os próximos; se só resta um (ou nenhum), completa com os que já passaram
+  function chipWindow(s) {
+    var k = 0;
+    while (k < s.length && s[k].past) k++;
+    var start = Math.max(0, Math.min(k, s.length - 2));
+    return s.slice(start, start + 2);
+  }
   // "Em cartaz" e, ao lado, o nome do cinema como está no script (ex.: "No Cinema do Centro")
   function head(c, d, extra) {
     return '<div class="chead"><span class="brand bb">' + (d.when === "hoje" ? "Em cartaz" : "Em cartaz amanhã") + '</span><span class="cname">' +
@@ -1051,8 +1065,8 @@
     return '<div class="cb">' + head(c, d, pages > 1 ? '<span class="pg2">' + (pg + 1) + "/" + pages + "</span>" : "") +
       '<div class="grid' + (items.length > 4 ? "" : " one") + '">' + items.map(function (r) {
         var p = poster(r.m).replace(/<\/div>$/, rating(r.m) + "</div>");
-        return '<div class="cell">' + p + '<div class="t">' + esc(r.m.title) + '</div><div class="meta">' + meta(r.m, { genres: 1, noRating: true }) +
-          '</div><div class="chips">' + r.s.filter(function (x) { return !x.past; }).slice(0, 2).map(chip).join("") + "</div></div>";
+        return '<div class="cell' + (r.next ? "" : " done") + '">' + p + '<div class="t">' + esc(r.m.title) + '</div><div class="meta">' + meta(r.m, { genres: 1, noRating: true }) +
+          '</div><div class="chips">' + chipWindow(r.s).map(chip).join("") + "</div></div>";
       }).join("") + "</div></div>";
   }
   function showCine() {

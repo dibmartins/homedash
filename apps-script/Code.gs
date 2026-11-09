@@ -231,11 +231,11 @@ function cinemaAdd_(movies, order, r) {
   }));
 }
 
-// "1h 45min", "105 min", 6300 (segundos) ou 105 (minutos) -> 105
+// "1h 45min", "PT1H45M", "105 min", 6300 (segundos) ou 105 (minutos) -> 105
 function cinemaRuntime_(rt) {
   if (rt == null || rt === '') return 0;
   if (typeof rt === 'number') return rt > 400 ? Math.round(rt / 60) : rt;
-  const s = String(rt), h = s.match(/(\d+)\s*h/i), m = s.match(/(\d+)\s*min/i);
+  const s = String(rt), h = s.match(/(\d+)\s*h/i), m = s.match(/(\d+)\s*m(?:in)?\b/i) || s.match(/H(\d+)M/i);
   if (h || m) return (h ? +h[1] * 60 : 0) + (m ? +m[1] : 0);
   const n = parseInt(s, 10);
   return isNaN(n) ? 0 : (n > 400 ? Math.round(n / 60) : n);
