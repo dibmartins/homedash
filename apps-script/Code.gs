@@ -318,26 +318,7 @@ function getMenu_(sheet) {
 // ---------------- Fotos ----------------
 function getPhotos_(cfg) {
   const cache = CacheService.getScriptCache();
-  if (cfg.album) {
-    const ck = 'album-v3-' + Utilities.base64Encode(cfg.album).slice(0, 200);
-    const hit = cache.get(ck);
-    if (hit) return JSON.parse(hit);
-    // Lê o álbum compartilhado (link "photos.app.goo.gl/..."). Não é uma API oficial:
-    // se o Google mudar a página, use uma pasta do Drive.
-    const html = UrlFetchApp.fetch(cfg.album, { followRedirects: true, muteHttpExceptions: true }).getContentText();
-    const items = albumItems_(html);
-    const videos = videoSet_(items.map(it => it.url));
-    // o painel troca o sufixo pelo tamanho real da tela; vídeos usam "=dv" (o arquivo do vídeo).
-    // w/h dizem se a foto é em pé (o painel junta duas fotos em pé); t é a data, quando o álbum informa.
-    const out = items.map(it => {
-      const o = { url: it.url + '=w1920-h1080', w: it.w, h: it.h };
-      if (it.t) o.t = it.t;
-      if (videos[it.url]) o.video = it.url + '=dv';
-      return o;
-    });
-    try { cache.put(ck, JSON.stringify(out), 6 * 3600); } catch (err) {}
-    return out;
-  }
+  if (cfg.album) return albumSample_(cfg.album);
   if (cfg.folder) {
     const out = [];
     const files = DriveApp.getFolderById(cfg.folder).getFiles();
@@ -348,6 +329,176 @@ function getPhotos_(cfg) {
     return out;
   }
   return [];
+}
+
+// ---------------- Álbum compartilhado do Google Fotos ----------------
+// Não é uma API oficial: se o Google mudar a página, use uma pasta do Drive.
+// A página do álbum só traz as fotos mais recentes. Por isso o script lê o álbum inteiro,
+// página por página, e guarda um índice. A cada 6 horas o painel recebe um sorteio
+// de ALBUM_SAMPLE fotos de todas as épocas.
+// O índice é refeito a cada 4 horas, um pouco a cada pedido do painel. Com o gatilho de
+// instalarAtualizacaoAlbum (opcional, execute uma vez no editor), ele é feito de uma vez, de hora em hora.
+const ALBUM_SAMPLE = 300;
+const ALBUM_MIN_SIDE = 800; // fotos menores que isso ficam serrilhadas na TV e são puladas
+const ALBUM_PREFIX = 'https://lh3.googleusercontent.com/pw/';
+const ALBUM_CHUNK = 90000;  // o cache guarda no máximo 100 KB por chave
+
+function albumHash_(url) {
+  return Utilities.base64EncodeWebSafe(Utilities.computeDigest(Utilities.DigestAlgorithm.MD5, url)).slice(0, 12);
+}
+
+// Endereço "photos.app.goo.gl/..." -> id e chave do álbum, e o HTML da primeira página.
+function albumRef_(albumUrl) {
+  const html = UrlFetchApp.fetch(albumUrl, { followRedirects: true, muteHttpExceptions: true }).getContentText();
+  const can = /<link\s+rel="canonical"\s+href="([^"]+)"/.exec(html);
+  if (!can) return { html: html };
+  const path = can[1].split('?')[0].split('/').filter(String);
+  const km = /[?&]key=([^"&]+)/.exec(can[1]) || /key=([^"&\\]+)/.exec(html);
+  return { id: path[path.length - 1], key: km ? km[1] : null, html: html };
+}
+
+// Uma página do álbum (a mesma chamada que a página do Google Fotos faz ao rolar).
+function albumPage_(ref, token) {
+  const req = [[['snAcKc', JSON.stringify([ref.id, token || null, null, ref.key])]]];
+  const res = UrlFetchApp.fetch('https://photos.google.com/_/PhotosUi/data/batchexecute', {
+    method: 'post', payload: { 'f.req': JSON.stringify(req) }, muteHttpExceptions: true,
+  });
+  if (res.getResponseCode() !== 200) throw new Error('página do álbum: HTTP ' + res.getResponseCode());
+  const text = res.getContentText().replace(/^\)\]\}'/, '');
+  let list = null;
+  try { list = JSON.parse(text); } catch (err) {
+    const line = text.split('\n').filter(l => l.indexOf('"snAcKc"') !== -1)[0];
+    list = line ? JSON.parse(line) : [];
+  }
+  const env = (list || []).filter(x => x && x[1] === 'snAcKc')[0] || (list && list[0] && list[0][1] === 'snAcKc' ? list[0] : null);
+  if (!env || !env[2]) return { items: [], next: null };
+  const data = JSON.parse(env[2]);
+  return { items: albumItems_(JSON.stringify(data[1] || [])), next: data[2] || null };
+}
+
+// Lê páginas até acabar o álbum ou o tempo. O progresso fica no cache e continua no próximo pedido.
+function albumBuild_(albumUrl, budgetMs) {
+  const t0 = Date.now(), h = albumHash_(albumUrl), cache = CacheService.getScriptCache();
+  const lock = LockService.getScriptLock();
+  if (!lock.tryLock(100)) return; // outro pedido já está lendo o álbum
+  try {
+    const meta = JSON.parse(cache.get('albidx-' + h) || 'null');
+    let b = JSON.parse(cache.get('albbuild-' + h) || 'null');
+    if (!b) {
+      if (meta && Date.now() - meta.built < 4 * 3600 * 1000) return; // índice ainda novo
+      const ref = albumRef_(albumUrl);
+      if (!ref.id) return;
+      b = { gen: Date.now().toString(36), id: ref.id, key: ref.key, token: null, chunks: 0, count: 0, buf: '', pages: 0 };
+    }
+    const seen = {};
+    while (Date.now() - t0 < budgetMs) {
+      const page = albumPage_(b, b.token);
+      b.pages++;
+      page.items.forEach(it => {
+        if (seen[it.url] || !it.url.startsWith(ALBUM_PREFIX)) return;
+        seen[it.url] = true;
+        if (it.w && it.h && Math.max(it.w, it.h) < ALBUM_MIN_SIDE) return;
+        b.buf += it.url.slice(ALBUM_PREFIX.length) + ',' + (it.w || 0) + ',' + (it.h || 0) + ',' + (it.t || 0) + '\n';
+        b.count++;
+        if (b.buf.length > ALBUM_CHUNK) { cache.put('albchunk-' + h + '-' + b.gen + '-' + b.chunks++, b.buf, 21600); b.buf = ''; }
+      });
+      b.token = page.next;
+      if (!b.token || b.pages > 400) {
+        if (b.buf) cache.put('albchunk-' + h + '-' + b.gen + '-' + b.chunks++, b.buf, 21600);
+        cache.put('albidx-' + h, JSON.stringify({ gen: b.gen, chunks: b.chunks, count: b.count, pages: b.pages, built: Date.now() }), 21600);
+        cache.remove('albbuild-' + h);
+        return;
+      }
+    }
+    cache.put('albbuild-' + h, JSON.stringify(b), 21600);
+  } finally {
+    lock.releaseLock();
+  }
+}
+
+// Todas as fotos do índice (ou null, se ainda não terminou de ler o álbum).
+function albumIndex_(albumUrl) {
+  const h = albumHash_(albumUrl), cache = CacheService.getScriptCache();
+  const meta = JSON.parse(cache.get('albidx-' + h) || 'null');
+  if (!meta) return null;
+  const keys = [];
+  for (let i = 0; i < meta.chunks; i++) keys.push('albchunk-' + h + '-' + meta.gen + '-' + i);
+  const got = cache.getAll(keys);
+  if (Object.keys(got).length < keys.length) { cache.remove('albidx-' + h); return null; } // o cache perdeu um pedaço
+  const out = [];
+  keys.forEach(k => got[k].split('\n').forEach(line => {
+    if (!line) return;
+    const p = line.split(',');
+    const it = { url: ALBUM_PREFIX + p[0], w: +p[1], h: +p[2] };
+    if (+p[3]) it.t = +p[3];
+    out.push(it);
+  }));
+  return { gen: meta.gen, items: out };
+}
+
+// Sorteio de fotos de todo o álbum, o mesmo por 6 horas (o painel não recomeça a cada atualização).
+function albumSample_(albumUrl) {
+  const h = albumHash_(albumUrl), cache = CacheService.getScriptCache();
+  try { albumBuild_(albumUrl, 8000); } catch (err) { /* continua com o que já tem */ }
+  const idx = albumIndex_(albumUrl);
+  const slot = Math.floor(Date.now() / (6 * 3600 * 1000));
+  const sk = 'albsample-' + h + '-' + (idx ? idx.gen : 'p1') + '-' + slot;
+  const hit = cache.get(sk);
+  if (hit) return JSON.parse(hit);
+  let items;
+  if (idx && idx.items.length) {
+    items = idx.items;
+    for (let i = items.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); const t = items[i]; items[i] = items[j]; items[j] = t; }
+    items = items.slice(0, ALBUM_SAMPLE);
+  } else {
+    // enquanto o índice não fica pronto: as fotos da primeira página do álbum
+    const html = UrlFetchApp.fetch(albumUrl, { followRedirects: true, muteHttpExceptions: true }).getContentText();
+    items = albumItems_(html).filter(it => !(it.w && it.h && Math.max(it.w, it.h) < ALBUM_MIN_SIDE));
+  }
+  const videos = videoSet_(items.map(it => it.url));
+  // o painel troca o sufixo pelo tamanho real da tela; vídeos usam "=dv" (o arquivo do vídeo).
+  // w/h dizem se a foto é em pé (o painel junta duas fotos em pé); t é a data, quando o álbum informa.
+  const out = items.map(it => {
+    const o = { url: it.url + '=w1920-h1080', w: it.w, h: it.h };
+    if (it.t) o.t = it.t;
+    if (videos[it.url]) o.video = it.url + '=dv';
+    return o;
+  });
+  try { cache.put(sk, JSON.stringify(out), 6 * 3600); } catch (err) {}
+  return out;
+}
+
+// Opcional: execute uma vez no editor para ler o álbum de hora em hora, sem esperar os pedidos do painel.
+function instalarAtualizacaoAlbum() {
+  ScriptApp.getProjectTriggers().filter(t => t.getHandlerFunction() === 'atualizarAlbum').forEach(t => ScriptApp.deleteTrigger(t));
+  ScriptApp.newTrigger('atualizarAlbum').timeBased().everyHours(1).create();
+  atualizarAlbum();
+}
+function atualizarAlbum() {
+  const seen = {};
+  Object.keys(PROFILES).forEach(k => {
+    const a = (PROFILES[k].photos || {}).album;
+    if (a && !seen[a]) { seen[a] = true; albumBuild_(a, 4 * 60 * 1000); }
+  });
+}
+
+// Execute no editor para conferir: quantas fotos o álbum tem, a mais antiga e a mais nova (Ver > Registros).
+function testeAlbum() {
+  const cfg = Object.keys(PROFILES).map(k => PROFILES[k].photos || {}).filter(p => p.album)[0];
+  if (!cfg) return Logger.log('nenhum perfil com álbum');
+  const ref = albumRef_(cfg.album);
+  Logger.log('álbum: ' + (ref.id ? 'id ok' : 'id NÃO encontrado') + ', chave: ' + (ref.key ? 'ok' : 'não encontrada'));
+  if (!ref.id) return;
+  const p1 = albumPage_(ref, null);
+  Logger.log('primeira página: ' + p1.items.length + ' fotos; tem próxima página: ' + !!p1.next);
+  const h = albumHash_(cfg.album), cache = CacheService.getScriptCache();
+  cache.remove('albidx-' + h); cache.remove('albbuild-' + h);
+  albumBuild_(cfg.album, 4 * 60 * 1000);
+  const idx = albumIndex_(cfg.album);
+  if (!idx) return Logger.log('ainda lendo o álbum (é grande); execute de novo para continuar');
+  const ts = idx.items.map(i => i.t).filter(Boolean).sort();
+  const fmt = t => Utilities.formatDate(new Date(t), Session.getScriptTimeZone(), 'dd/MM/yyyy');
+  Logger.log('índice: ' + idx.items.length + ' fotos' + (ts.length ? ', de ' + fmt(ts[0]) + ' a ' + fmt(ts[ts.length - 1]) : ''));
 }
 
 // Itens do álbum compartilhado: endereço, largura, altura e, se aparecer logo depois, a data (ms).

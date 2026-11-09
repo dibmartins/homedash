@@ -62,6 +62,8 @@
   /* foto inteira no centro; nas laterais, a mesma foto bem pequena, ampliada e desfocada */
   #bg .layer img { position: absolute; inset: 0; width: 100%; height: 100%; }
   #bg .layer .main { object-fit: contain; }
+  /* foto em pé sozinha: 15% maior (as laterais sobravam); corta 7,5% em cima e embaixo */
+  #bg .layer.tall .main { top: -7.5vh; bottom: auto; height: 115vh; }
   #bg .layer .fill { object-fit: cover; filter: blur(2vw) brightness(0.55); transform: scale(1.1); }
   .lite #bg .layer .fill { filter: brightness(0.5); }
   /* modo leve (Chromecast antigo, 512 MB): troca de foto sem esmaecer, sem sombras e sem a cópia
@@ -462,7 +464,13 @@
     if (!list.length) { photos = []; photosKey = ""; clearTimeout(photoTimer); photoTimer = null; $("bg").innerHTML = ""; return; }
     if (key === photosKey && photoTimer) return; // mesma lista: segue a sequência atual
     photosKey = key;
-    photos = list.slice();
+    // no Chromecast os vídeos apareceriam parados, com o ▶ do Google por cima: ficam de fora.
+    // Fotos muito pequenas (menos de 800 px no lado maior) ficam serrilhadas na TV: também ficam de fora.
+    photos = list.filter(function (p) {
+      if (IS_CAST && p.video) return false;
+      return !(p.w && p.h && Math.max(p.w, p.h) < 800);
+    });
+    if (!photos.length) photos = list.slice();
     // embaralha para não repetir sempre a mesma sequência
     for (var i = photos.length - 1; i > 0; i--) { var j = Math.floor(Math.random() * (i + 1)); var t = photos[i]; photos[i] = photos[j]; photos[j] = t; }
     photoIdx = -1;
@@ -648,7 +656,7 @@
   }
   function duoUrl(p) {
     if (p.url && /googleusercontent\.com/.test(p.url))
-      return Promise.resolve(p.url.replace(/=[^=\/]*$/, "") + "=w" + Math.round(SCREEN_W * 0.4) + "-h" + SCREEN_H);
+      return Promise.resolve(p.url.replace(/=[^=\/]*$/, "") + "=w" + Math.round(SCREEN_W * 0.4) + "-h" + SCREEN_H + "-no");
     return photoUrl(p);
   }
   function loadImg(src) {
@@ -716,21 +724,27 @@
         if (!PHOTO_COVER && !IS_CAST) {
           var fill = new Image();
           fill.className = "fill";
-          fill.src = /googleusercontent\.com/.test(src) ? src.replace(/=[^=\/]*$/, "=w96-h54-c") : src;
+          fill.src = /googleusercontent\.com/.test(src) ? src.replace(/=[^=\/]*$/, "=w320-h180-c") : src;
           layer.appendChild(fill);
         }
         layer.appendChild(img);
+        if (!PHOTO_COVER && tall(img)) layer.classList.add("tall");
         showLayer(layer);
       };
       img.src = src;
     }).catch(function () {});
   }
+  // foto em pé sozinha: um pouco maior, cortando só uma faixa em cima e embaixo
+  var TALL_ZOOM = 1.15;
   function photoUrl(p) {
     if (p.url) {
       // álbum do Google Fotos: troca o sufixo de tamanho (=w1280-h800) pelo da tela
       if (/googleusercontent\.com/.test(p.url)) {
         // sem "-c" o Google devolve a foto inteira cabendo na tela; com "-c", recortada para preencher
-        return Promise.resolve(p.url.replace(/=[^=\/]*$/, "") + "=w" + SCREEN_W + "-h" + SCREEN_H + (PHOTO_COVER ? "-c" : ""));
+        // "-no": sem o ▶ que o Google desenha por cima dos vídeos.
+        // pede no tamanho exato da área da foto (55% da largura): a TV não precisa reduzir, e fica nítida
+        var w = Math.round(SCREEN_W * 0.55), h = isPortrait(p) === true ? Math.round(SCREEN_H * TALL_ZOOM) : SCREEN_H;
+        return Promise.resolve(p.url.replace(/=[^=\/]*$/, "") + "=w" + w + "-h" + h + (PHOTO_COVER ? "-c" : "") + "-no");
       }
       return Promise.resolve(p.url);
     }

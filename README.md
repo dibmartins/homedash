@@ -139,13 +139,15 @@ O script guarda a programação por 3 horas. Para conferir, execute `testeCinema
 
 ## Fotos e vídeos do álbum
 
-As fotos aparecem inteiras, sem cortes, no tamanho real da tela; nas laterais fica a mesma foto desfocada. Para a foto preencher a tela toda (cortando as bordas), acrescente `&fundo=cobrir` ao endereço do painel.
+As fotos aparecem inteiras, sem cortes, pedidas ao Google no tamanho exato da área da foto; nas laterais fica a mesma foto desfocada. Uma foto em pé sozinha aparece 15% maior, com um pequeno corte em cima e embaixo. Para a foto preencher a tela toda (cortando as bordas), acrescente `&fundo=cobrir` ao endereço do painel.
 
 Fotos em pé aparecem em dupla, como duas Polaroids lado a lado, com o mês e o ano embaixo quando o álbum informa a data. Depois de atualizar o script, publique uma nova versão; a função `testeVideos` mostra no registro quantas fotos em pé e com data ele encontrou.
 
+**Álbum inteiro.** A página de um álbum compartilhado só mostra as fotos mais recentes. Por isso o script lê o álbum todo, página por página, e a cada 6 horas manda ao painel um sorteio de 300 fotos de todas as épocas. Num álbum grande, a primeira leitura leva alguns minutos, e ela acontece aos poucos, a cada atualização do painel. Para ler tudo de uma vez e manter o índice em dia de hora em hora, execute uma vez a função `instalarAtualizacaoAlbum` no editor. A função `testeAlbum` mostra quantas fotos o álbum tem e de que datas. Fotos com menos de 800 pixels no lado maior ficam de fora, porque aparecem serrilhadas na TV.
+
 Os vídeos são baixados por inteiro (na versão 1080p do Google Fotos, quando existe) enquanto o item anterior está na tela, e só aparecem quando estão prontos, para não travar.
 
-Os vídeos do álbum tocam sozinhos, sem som, no fundo (no app de Android TV, pelo player do próprio Android, que é mais leve), e a próxima foto entra quando o vídeo acaba (no máximo 2 minutos por vídeo). No Chromecast sem Google TV, que é mais fraco, o vídeo aparece como foto (o primeiro quadro), sempre sozinho, nunca na dupla de Polaroids.
+Os vídeos do álbum tocam sozinhos, sem som, no fundo (no app de Android TV, pelo player do próprio Android, que é mais leve), e a próxima foto entra quando o vídeo acaba (no máximo 2 minutos por vídeo). No Chromecast sem Google TV, que é mais fraco, os vídeos ficam de fora.
 
 ## Segurança
 
