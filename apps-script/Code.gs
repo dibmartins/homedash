@@ -66,6 +66,13 @@ const CACHE_SECONDS = 120;
 // Aparece num card que reveza com a agenda e o cardápio. Vazio = sem o evangelho.
 const GOSPEL_API = 'https://liturgia.up.railway.app/v2/';
 
+// Filmes em cartaz de um cinema, com horários, gênero, duração, classificação e cartaz, lidos do AdoroCinema.
+// code: o trecho do endereço da programação do cinema no AdoroCinema, ex.:
+//       adorocinema.com/programacao/cinema-X0000/  ->  code: 'X0000'.  Vazio = sem filmes.
+// name: texto ao lado de "Em cartaz", ex.: 'No Cinema do Centro'.
+// A tela de filmes aparece no lugar de uma foto de vez em quando. Para desligar num perfil, use cinema: false nele.
+const CINEMA = { code: '', name: '' };
+
 function doGet(e) {
   const p = (e && e.parameter) || {};
   if (TOKEN === 'troque-este-segredo' || TOKEN.length < 24) return json_({ error: 'defina um TOKEN longo no script' });
@@ -110,6 +117,7 @@ function doGet(e) {
     news: (profile.news && profile.news.length) ? safe('notícias', () => getNews_(profile.news), []) : [],
     trash: profile.lixo || null,
     gospel: GOSPEL_API ? safe('evangelho', getGospel_, null) : null,
+    cinema: CINEMA.code && profile.cinema !== false ? safe('cinema', getCinema_, null) : null,
     warnings: warnings,
     updated: new Date().toISOString(),
   });
@@ -147,6 +155,119 @@ function cleanGospel_(t) {
 function testeEvangelho() {
   CacheService.getScriptCache().remove('evangelho-' + Utilities.formatDate(new Date(), Session.getScriptTimeZone(), 'yyyyMMdd'));
   Logger.log(JSON.stringify(getGospel_(), null, 2));
+}
+
+// ---------------- Cinema: filmes em cartaz ----------------
+// Busca a programação de hoje e de amanhã (para a noite, depois da última sessão) e guarda por 3 horas.
+function getCinema_() {
+  const tz = Session.getScriptTimeZone(), now = new Date();
+  const key = cinemaKey_();
+  const cache = CacheService.getScriptCache();
+  const hit = cache.get(key);
+  if (hit) return JSON.parse(hit);
+  const movies = {}, order = [];
+  [0, 1].forEach(off => {
+    const day = Utilities.formatDate(new Date(now.getTime() + off * 86400000), tz, 'yyyy-MM-dd');
+    cinemaDay_(day, off === 0).forEach(r => cinemaAdd_(movies, order, r));
+  });
+  order.forEach(id => delete movies[id].brazilian);
+  const out = { name: CINEMA.name || '', movies: order.map(id => movies[id]) };
+  try { cache.put(key, JSON.stringify(out), out.movies.length ? 3 * 3600 : 600); } catch (err) {}
+  return out;
+}
+
+// muda a cada 3 horas, para os horários do dia não ficarem velhos
+function cinemaKey_() {
+  const tz = Session.getScriptTimeZone(), now = new Date();
+  return 'cinema-' + CINEMA.code + '-' + Utilities.formatDate(now, tz, 'yyyyMMdd') + '-' + Math.floor(+Utilities.formatDate(now, tz, 'H') / 3);
+}
+
+// Uma página de programação por dia (às vezes mais de uma, quando há muitos filmes).
+function cinemaDay_(day, strict) {
+  const base = 'https://www.adorocinema.com/_/showtimes/theater-' + encodeURIComponent(CINEMA.code) + '/d-' + day + '/';
+  const opts = { muteHttpExceptions: true, followRedirects: true,
+    headers: { 'User-Agent': 'Mozilla/5.0 (painel)', Accept: 'application/json', 'X-Requested-With': 'XMLHttpRequest' } };
+  let results = [], page = 1, pages = 1;
+  do {
+    const res = UrlFetchApp.fetch(base + (page > 1 ? 'p-' + page + '/' : ''), opts);
+    const code = res.getResponseCode();
+    if (code !== 200) { if (strict && page === 1) throw new Error('programação HTTP ' + code); break; }
+    let j;
+    try { j = JSON.parse(res.getContentText()); } catch (err) { if (strict && page === 1) throw new Error('programação em formato inesperado'); break; }
+    results = results.concat(j.results || []);
+    pages = (j.pagination && (j.pagination.totalPages || j.pagination.pages)) || 1;
+  } while (++page <= pages && page <= 5);
+  return results;
+}
+
+function cinemaAdd_(movies, order, r) {
+  const mv = r.movie || r.film || {};
+  const title = mv.title || mv.originalTitle;
+  if (!title) return;
+  const id = String(mv.internalId || mv.id || title);
+  let m = movies[id];
+  if (!m) {
+    const countries = JSON.stringify(mv.countries || mv.nationalities || mv.nationality || '');
+    m = movies[id] = {
+      title: title,
+      genres: (mv.genres || []).map(g => typeof g === 'string' ? g : (g.translate || g.name || g.tag || '')).filter(String),
+      runtime: cinemaRuntime_(mv.runtime),
+      rating: cinemaRating_(JSON.stringify(r)),
+      poster: cinemaPoster_(mv.poster),
+      synopsis: decodeHtml_(String(mv.synopsisFull || mv.synopsis || '').replace(/<[^>]+>/g, '')).replace(/\s+/g, ' ').trim().slice(0, 400),
+      brazilian: /Brasil|Brazil|"BR"/i.test(countries),
+      sessions: [],
+    };
+    order.push(id);
+  }
+  const st = r.showtimes || {};
+  Object.keys(st).forEach(k => (Array.isArray(st[k]) ? st[k] : []).forEach(s => {
+    const at = String(s.startsAt || s.startDate || '').slice(0, 16);
+    if (!/^\d{4}-\d\d-\d\dT\d\d:\d\d$/.test(at)) return;
+    const ver = String(s.diffusionVersion || k).toUpperCase();
+    const v = /DUB/.test(ver) ? 'DUB' : (m.brazilian || /LOCAL/.test(ver) ? 'NAC' : 'LEG');
+    const f = /3D/i.test(JSON.stringify(s.projection || s.format || '') + ' ' + JSON.stringify(s.experience || '')) ? '3D' : '';
+    if (!m.sessions.some(x => x.at === at + ':00' && x.v === v)) m.sessions.push({ at: at + ':00', v: v, f: f });
+  }));
+}
+
+// "1h 45min", "105 min", 6300 (segundos) ou 105 (minutos) -> 105
+function cinemaRuntime_(rt) {
+  if (rt == null || rt === '') return 0;
+  if (typeof rt === 'number') return rt > 400 ? Math.round(rt / 60) : rt;
+  const s = String(rt), h = s.match(/(\d+)\s*h/i), m = s.match(/(\d+)\s*min/i);
+  if (h || m) return (h ? +h[1] * 60 : 0) + (m ? +m[1] : 0);
+  const n = parseInt(s, 10);
+  return isNaN(n) ? 0 : (n > 400 ? Math.round(n / 60) : n);
+}
+
+// classificação indicativa: "Não recomendado para menores de 12 anos" -> '12'; "Livre" -> 'L'
+function cinemaRating_(text) {
+  const m = text.match(/menores de (\d{1,2}) anos/i);
+  if (m) return m[1];
+  if (/livre para todos|"livre"|classifica[çc][ãa]o livre/i.test(text)) return 'L';
+  return '';
+}
+
+// pede o cartaz num tamanho bom para TV (o original pode ser enorme)
+function cinemaPoster_(p) {
+  const url = p && (p.url || p.href) || (typeof p === 'string' ? p : '');
+  if (!url) return '';
+  return url.replace(/^\/\//, 'https://').replace(/(acsta\.net\/)(?:[a-z]_\d+_\d+\/)?/, '$1c_310_420/');
+}
+
+// Execute no editor para conferir os filmes de hoje e de amanhã (Ver > Registros).
+function testeCinema() {
+  if (!CINEMA.code) return Logger.log('preencha CINEMA.code no começo do script');
+  const tz = Session.getScriptTimeZone(), day = Utilities.formatDate(new Date(), tz, 'yyyy-MM-dd');
+  const url = 'https://www.adorocinema.com/_/showtimes/theater-' + CINEMA.code + '/d-' + day + '/';
+  const res = UrlFetchApp.fetch(url, { muteHttpExceptions: true, headers: { 'User-Agent': 'Mozilla/5.0 (painel)', Accept: 'application/json', 'X-Requested-With': 'XMLHttpRequest' } });
+  Logger.log('HTTP ' + res.getResponseCode() + ' · início da resposta: ' + res.getContentText().slice(0, 1500));
+  CacheService.getScriptCache().remove(cinemaKey_());
+  const c = getCinema_();
+  Logger.log(c.movies.length + ' filmes');
+  c.movies.forEach(m => Logger.log(m.title + ' | ' + m.genres.join(', ') + ' | ' + m.runtime + ' min | ' + (m.rating || '?') +
+    ' | ' + m.sessions.map(s => s.at.slice(5, 16).replace('T', ' ') + ' ' + s.v + (s.f ? ' ' + s.f : '')).join(', ') + ' | ' + (m.poster ? 'com cartaz' : 'sem cartaz')));
 }
 
 // ---------------- Agenda ----------------

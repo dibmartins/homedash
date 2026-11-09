@@ -3,8 +3,9 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Caveat:wght@500&family=Great+Vibes&family=Cormorant+Garamond:wght@500&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Caveat:wght@500&family=Great+Vibes&family=Cormorant+Garamond:wght@500&display=swap">
 <script src="versiculos.js"></script>
+<script src="universo.js"></script>
 <title>Painel da Família</title>
 <!--
   Painel da Família — página única para TV (Chromecast, Android TV, navegador).
@@ -16,6 +17,9 @@
     lat/lon coordenadas para a previsão do tempo (sem elas, o tempo não aparece)
     cidade  nome exibido junto ao tempo
     fundo   "cobrir" para a foto preencher a tela toda (corta as bordas); sem ele, a foto aparece inteira
+    universo fundo animado atrás da coluna da esquerda: estrelas, nebulosa, galaxia, constelacoes ou 0 (desliga).
+            Liga sozinho (estrelas) só no app da TV; no navegador, só se for pedido aqui; no Chromecast, nunca.
+    cinema  0 desliga os filmes em cartaz (que aparecem no lugar de uma foto, a cada 3)
   Sem "api", o painel mostra dados de exemplo.
 -->
 <style>
@@ -34,6 +38,12 @@
   /* o fundo fica só no html: no body ele cobriria a foto (z-index negativo) */
   body { background: transparent; text-shadow: 0 1px 3px rgba(0, 0, 0, 0.45); }
   body { font-family: "Google Sans", Roboto, "Segoe UI", system-ui, sans-serif; font-size: 1.5vw; }
+
+  /* fundo animado (app da TV): por cima do degradê escuro, por trás dos cards; some aos poucos perto da foto */
+  #universe { position: fixed; top: 0; left: 0; width: 50vw; height: 100vh; z-index: -1; pointer-events: none; opacity: 0; transition: opacity 3s ease;
+    -webkit-mask-image: linear-gradient(90deg, #000 0, #000 88%, transparent 100%); mask-image: linear-gradient(90deg, #000 0, #000 88%, transparent 100%); }
+  #universe.show { opacity: 1; }
+  body.duo #universe { width: 48vw; }
 
   /* coluna da esquerda sobre o preto; a foto fica à direita (margem de segurança para overscan) */
   #left { position: fixed; left: 2.8vw; top: 3.5vh; bottom: 3vh; width: 42.2vw; display: flex; flex-direction: column; gap: 1.8vh; }
@@ -71,7 +81,7 @@
   body.duo #shade2 { opacity: 1; }
   /* fotos em pé: duas, lado a lado, em molduras de Polaroid levemente tortas */
   #bg .duo { background: radial-gradient(ellipse at 60% 50%, #3a3026, #14110e 75%); }
-  #bg .duo figure { position: absolute; margin: 0; width: 21vw; padding: 0.9vw 0.9vw 4.4vw; background: #fbfaf6;
+  #bg .duo figure { position: absolute; margin: 0; width: 24vw; padding: 0.9vw 0.9vw 4.4vw; background: #fbfaf6;
     box-shadow: 0 1.2vw 2.5vw rgba(0,0,0,0.8); }
   #bg .duo figure img { position: static; display: block; width: 100%; height: auto; aspect-ratio: 3 / 4; object-fit: cover; background: #ddd; }
   #bg .duo figcaption { position: absolute; left: 0; right: 0; bottom: 1.1vw; text-align: center; color: #444;
@@ -143,14 +153,15 @@
   .hidden { display: none !important; }
 
   /* versículo do dia: na base da foto, em letra manuscrita */
-  #verse { position: fixed; left: 45vw; right: 0; bottom: 0; padding: 12vh 3vw 3vh; text-align: center; z-index: 1; pointer-events: none;
-    background: linear-gradient(0deg, rgba(8,10,14,0.85), rgba(8,10,14,0.6) 55%, rgba(8,10,14,0)); }
+  /* a base da foto (ou vídeo) se funde no fundo escuro, como o lado que encosta no painel, e o versículo fica sobre ele */
+  #verse { position: fixed; left: 45vw; right: 0; bottom: 0; padding: 18vh 3vw 3vh; text-align: center; z-index: 1; pointer-events: none;
+    background: linear-gradient(0deg, var(--bg) 0%, var(--bg) 42%, rgba(17,21,28,0.75) 58%, rgba(17,21,28,0.3) 76%, rgba(17,21,28,0) 100%); }
   body.has-news #verse { bottom: 6vh; }
   .lite body.has-news #verse { bottom: 8.8vh; }
   #verse .vt { font: 400 2.7vw/1.12 "Great Vibes", "Segoe Script", cursive; color: #fbf3df; text-shadow: 0 0.2vw 0.9vw rgba(0,0,0,0.9); }
   #verse .vr { margin-top: 1vh; font: 500 1.05vw "Cormorant Garamond", Georgia, serif; letter-spacing: 0.25em; text-transform: uppercase; color: #e3c27a; text-shadow: 0 0 0.6vw #000; }
   /* com o versículo, as duas Polaroids sobem e diminuem um pouco para não ficar por baixo dele */
-  body.has-verse #bg .duo figure { width: 18.5vw; margin-top: -10vh; }
+  body.has-verse #bg .duo figure { width: 21.3vw; margin-top: -9vh; }
 
   /* evangelho do dia: reveza com a agenda e o cardápio */
   #gospel-card { flex: 1 1 0; text-shadow: none; }
@@ -187,12 +198,65 @@
   .lite body.has-news #left { bottom: calc(8.8vh + 2.5vh); }
   /* no modo leve a barra não rola: mostra uma manchete por vez */
   .lite #news-track { position: static; height: 100%; padding-left: 1.6vw; overflow: hidden; will-change: auto; }
+
+  /* ---------- cinema: filmes em cartaz, no lugar da foto ---------- */
+  /* começa transparente na borda e escurece aos poucos, como o degradê da foto, para emendar com a coluna da esquerda */
+  #cine { position: fixed; left: 45vw; right: 0; top: 0; bottom: 0; z-index: 1; overflow: hidden; background: #0a0a0c;
+    -webkit-mask-image: linear-gradient(90deg, transparent 0, #000 9%); mask-image: linear-gradient(90deg, transparent 0, #000 9%);
+    opacity: 0; transition: opacity 1.5s ease; text-shadow: none; color: #f4f4f6; }
+  #cine.show { opacity: 1; }
+  body.has-news #cine { bottom: 6vh; }
+  .lite body.has-news #cine { bottom: 8.8vh; }
+  body.cine #verse, body.cine #bg { opacity: 0; }
+  #bg { transition: opacity 1.5s ease; }
+  #verse { transition: opacity 1.5s ease; }
+  #cine .bb { font-family: "Bebas Neue", Impact, "Arial Narrow", sans-serif; font-weight: 400; letter-spacing: 0.02em; }
+  /* cartaz: a imagem cobre o título; sem imagem, fica o título sobre um degradê */
+  #cine .pst { position: relative; overflow: hidden; border-radius: 0.5vw; background-size: cover; background-position: center;
+    box-shadow: 0 0.5vw 1.4vw rgba(0,0,0,0.6); }
+  #cine .pst b { position: absolute; inset: 0; display: flex; align-items: flex-end; padding: 8%; font: 400 1.4vw/1 "Bebas Neue", Impact, sans-serif; color: #fff; z-index: 0; }
+  #cine .pst i { position: absolute; inset: 0; background-size: cover; background-position: center; z-index: 1; }
+  #cine .rt { display: inline-block; min-width: 1.6em; padding: 0.12em 0.3em; border-radius: 0.25em; text-align: center; font-weight: 700;
+    color: #fff; font-size: 0.85em; line-height: 1.2; vertical-align: 0.06em; }
+  #cine .meta { color: #b9bcc6; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  #cine .meta .sep { margin: 0 0.45em; color: #5c606b; }
+  #cine .ss { display: inline-flex; align-items: baseline; gap: 0.35em; padding: 0.28em 0.55em; border-radius: 0.3em; background: rgba(255,255,255,0.1);
+    border: 1px solid rgba(255,255,255,0.16); font-weight: 700; font-variant-numeric: tabular-nums; white-space: nowrap; }
+  #cine .ss i { font-style: normal; font-weight: 600; font-size: 0.68em; color: #aab0bc; letter-spacing: 0.06em; }
+  #cine .ss.past { opacity: 0.35; text-decoration: line-through; }
+  #cine .ss.next { background: #e50914; border-color: #e50914; color: #fff; }
+  #cine .ss.next i { color: #ffd9db; }
+  #cine .chips { display: flex; flex-wrap: wrap; gap: 0.5vw; }
+  #cine .chead { display: flex; align-items: center; gap: 1.2vw; min-height: 3.2vw; }
+  #cine .brand { flex: none; white-space: nowrap; color: #e50914; font-size: 3.2vw; line-height: 0.9; }
+  #cine .cname { flex: 1 1 auto; font-size: 1.5vw; font-weight: 500; color: #e9e9ee; min-width: 0; line-height: 1.15; }
+
+  /* b: parede de cartazes, 4 por linha */
+  .cb { position: absolute; inset: 0; padding: 4vh 2.6vw 3vh 5vw; display: flex; flex-direction: column;
+    background: radial-gradient(ellipse at 60% -20%, #2a0a0d, #11151c 65%); }
+  .cb .grid { flex: 1 1 0; min-height: 0; display: grid; grid-template-columns: repeat(4, 1fr); grid-template-rows: repeat(2, 1fr); gap: 2.4vh 1.3vw; margin-top: 2.4vh; }
+  /* até 4 filmes: uma linha só, com cartazes do mesmo tamanho, no meio da tela */
+  .cb .grid.one { grid-template-rows: calc(50% - 1.2vh); align-content: center; }
+  .cb .cell { display: flex; flex-direction: column; min-height: 0; min-width: 0; }
+  .cb .cell .pst { flex: 1 1 0; min-height: 0; border-radius: 0.5vw; }
+  .cb .cell .pst .rt { position: absolute; z-index: 2; top: 0.6vw; right: 0.6vw; font-size: 0.95vw; box-shadow: 0 0.2vw 0.5vw rgba(0,0,0,0.5); }
+  .cb .t { font-size: 1.15vw; font-weight: 700; margin-top: 0.9vh; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .cb .meta { font-size: 0.92vw; margin-top: 0.2vh; }
+  #cine .cb .chips { font-size: 0.88vw; gap: 0.35vw; margin-top: 0.8vh; flex-wrap: nowrap; overflow: hidden; }
+  .cb .ss { padding: 0.25em 0.4em; }
+  .cb .pg2 { margin-left: auto; font-size: 1vw; color: #9ca1ad; letter-spacing: 0.1em; }
+  /* modo leve: o cinema sem máscara de degradê, sem sombras e sem esmaecer */
+  .lite #cine { -webkit-mask-image: none; mask-image: none; transition: none; }
+  .lite #cine .pst, .lite .cb .cell .pst .rt { box-shadow: none; }
+  .lite #bg, .lite #verse { transition: none; }
+
 </style>
 </head>
 <body>
   <div id="bg"></div>
   <div id="shade"></div>
   <div id="shade2"></div>
+  <canvas id="universe" hidden></canvas>
   <div id="left">
     <header>
       <div class="when">
@@ -226,6 +290,7 @@
     </div>
   </div>
 
+  <div id="cine" class="hidden"></div>
   <div id="verse" class="hidden"><div class="vt"></div><div class="vr"></div></div>
   <div id="status"></div>
   <div id="news" class="hidden"><div class="tag">Notícias</div><div class="lane"><div id="news-track"></div></div></div>
@@ -604,7 +669,7 @@
     var layer = document.createElement("div");
     layer.className = "layer duo";
     var r = function (min, max) { return (min + Math.random() * (max - min)).toFixed(1); };
-    [[a, ia, 6, r(14, 16), -r(2.5, 5)], [b, ib, 29, r(18, 20), r(2, 4)]].forEach(function (x) {
+    [[a, ia, 3.5, r(13, 15), -r(2.5, 5)], [b, ib, 28, r(17, 19), r(2, 4)]].forEach(function (x) {
       var fig = document.createElement("figure");
       fig.style.left = x[2] + "vw";
       fig.style.top = x[3] + "vh";
@@ -674,18 +739,20 @@
   }
   function nextPhoto() {
     if (!photos.length) return;
+    // de vez em quando, os filmes em cartaz entram no lugar de uma foto
+    if (cineOn) hideCine();
+    else if (cineReady() && ++cineCount >= CINE_EVERY) { cineCount = 0; showCine(); scheduleNext(CINE_MS); return; }
     photoIdx = (photoIdx + 1) % photos.length;
     var p = photos[photoIdx];
     bgGen++;
     if (p.video && !IS_CAST) playVideo(p, bgGen); else showStill(p);
-    rotatePanel();
     prefetchNext();
   }
 
   // ---------- agenda em páginas: nada é cortado ----------
   // Mede as linhas e divide em páginas do tamanho do card. Se não couber em uma página, primeiro
   // esconde o que já passou; se ainda assim não couber, as páginas trocam junto com a foto do fundo
-  // (sem fotos, a cada 45 s).
+  // a cada 45 s.
   var lastData = null, agendaPage = 0, agendaPages = 1, pageTimer = null;
   function paginate() {
     var card = $("agenda"), list = $("events"), rows = list.children;
@@ -740,7 +807,8 @@
   }
 
   // ---------- coluna da esquerda: agenda e cardápio <-> evangelho ----------
-  // A cada foto nova: a próxima página da agenda; depois da última, o evangelho; depois, a agenda de novo.
+  // Com relógio próprio (não segue a troca de fotos, que pode ser rápida com vídeos curtos):
+  // cada página da agenda fica 45 s; depois da última, o evangelho fica o tempo de ser lido; depois, a agenda de novo.
   var panelView = 0;
   function setView(v) {
     panelView = v;
@@ -763,19 +831,27 @@
     ro.observe($("panel"));
     ro.observe($("gospel-card"));
   }
+  // tempo de leitura do evangelho: ~2 palavras por segundo (leitura calma, à distância), entre 1 e 4 minutos
+  function gospelMs() {
+    var words = (lastData.gospel.text.match(/\S+/g) || []).length;
+    return Math.max(60, Math.min(240, Math.round(words / 2) + 10)) * 1000;
+  }
+  function schedulePanel() {
+    clearTimeout(pageTimer);
+    pageTimer = setTimeout(rotatePanel, panelView === 1 && hasGospel() ? gospelMs() : CONFIG.photoEveryMs);
+  }
   function rotatePanel() {
     if (panelView === 0 && agendaPage + 1 < agendaPages) layoutAgenda(true);
     else if (panelView === 0 && hasGospel()) setView(1);
     else if (panelView === 1) setView(0);
     else layoutAgenda(true);
-    clearTimeout(pageTimer);
-    pageTimer = photos.length ? null : setTimeout(rotatePanel, CONFIG.photoEveryMs);
+    schedulePanel();
   }
   function refreshPanel() {
     if (panelView === 1 && !hasGospel()) setView(0);
     else if (panelView === 1) { renderGospel(); fitGospel(); }
     else layoutAgenda(false);
-    if (!photos.length && !pageTimer) pageTimer = setTimeout(rotatePanel, CONFIG.photoEveryMs);
+    if (!pageTimer) schedulePanel();
   }
 
   // ---------- versículo do dia ----------
@@ -927,6 +1003,107 @@
     }).catch(function () { /* mantém o último tempo exibido */ });
   }
 
+  // ---------- cinema: filmes em cartaz ----------
+  // A cada CINE_EVERY itens do fundo, a tela da direita mostra a programação do cinema no lugar da foto.
+  // Mostra as sessões de hoje; depois da última sessão do dia, as de amanhã.
+  var CINE_PARAM = (params.get("cinema") || "").toLowerCase();
+  var CINE_EVERY = 4, CINE_MS = 45 * 1000, cineCount = 0, cineTurn = 0, cineOn = false, cineHideTimer = null;
+  var RATING_COLORS = { L: "#0c9447", "10": "#0f7dc2", "12": "#d9a400", "14": "#e67824", "16": "#db2827", "18": "#1a1a1a" };
+  function cineDayList(c, now) {
+    var today = startOfDay(now), tomorrow = new Date(today);
+    tomorrow.setDate(tomorrow.getDate() + 1);
+    function on(day) {
+      var end = new Date(day); end.setDate(end.getDate() + 1);
+      return (c.movies || []).map(function (m) {
+        var s = (m.sessions || []).map(function (x) { return { at: new Date(x.at), v: x.v || "", f: x.f || "" }; })
+          .filter(function (x) { return x.at >= day && x.at < end; })
+          .sort(function (a, b) { return a.at - b.at; });
+        var next = null;
+        s.forEach(function (x) { x.past = x.at < now; if (!x.past && !next) next = x; });
+        if (next) next.next = true;
+        return { m: m, s: s, next: next };
+      }).filter(function (r) { return r.next; })
+        .sort(function (a, b) { return a.next.at - b.next.at; });
+    }
+    var list = on(today);
+    if (list.length) return { when: "hoje", day: today, list: list };
+    list = on(tomorrow);
+    return { when: "amanhã", day: tomorrow, list: list };
+  }
+  function cineReady() {
+    var c = lastData && lastData.cinema;
+    return CINE_PARAM !== "0" && !!(c && c.movies && c.movies.length) && cineDayList(c, new Date()).list.length > 0;
+  }
+  function runtime(min) {
+    min = +min || 0;
+    if (!min) return "";
+    var h = Math.floor(min / 60), m = min % 60;
+    return (h ? h + "h" : "") + (m ? (h ? " " : "") + m + "min" : "");
+  }
+  function hue(s) { var h = 0; for (var i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) % 360; return h; }
+  function poster(m) {
+    var h = hue(m.title || "");
+    return '<div class="pst" style="background-image:linear-gradient(160deg,hsl(' + h + ',55%,32%),hsl(' + ((h + 40) % 360) + ',60%,12%))">' +
+      "<b>" + esc(m.title) + "</b>" + (m.poster ? '<i style="background-image:url(&quot;' + esc(m.poster) + '&quot;)"></i>' : "") + "</div>";
+  }
+  function rating(m) {
+    var r = String(m.rating || "").toUpperCase();
+    if (!r) return "";
+    return '<span class="rt" style="background:' + (RATING_COLORS[r] || "#5a5f6b") + '">' + esc(r) + "</span>";
+  }
+  function meta(m, opts) {
+    var parts = [];
+    var g = (m.genres || []).slice(0, opts && opts.genres || 2).join(", ");
+    if (g) parts.push(esc(g));
+    if (m.runtime) parts.push(runtime(m.runtime));
+    if (!(opts && opts.noRating) && rating(m)) parts.push(rating(m));
+    return parts.join('<span class="sep">•</span>');
+  }
+  function chip(x) {
+    return '<span class="ss' + (x.past ? " past" : "") + (x.next ? " next" : "") + '">' + hm(x.at) +
+      (x.v || x.f ? "<i>" + esc([x.v, x.f].filter(Boolean).join(" ")) + "</i>" : "") + "</span>";
+  }
+  // "Em cartaz" e, ao lado, o nome do cinema como está no script (ex.: "No Cinema do Centro")
+  function head(c, d, extra) {
+    return '<div class="chead"><span class="brand bb">' + (d.when === "hoje" ? "Em cartaz" : "Em cartaz amanhã") + '</span><span class="cname">' +
+      esc(c.name || "") + "</span>" + (extra || "") + "</div>";
+  }
+  // parede de cartazes: até 8 por vez; com mais filmes, alterna as páginas a cada vez
+  function cineHtml(c, d) {
+    var per = 8, pages = Math.ceil(d.list.length / per), pg = cineTurn % pages;
+    var items = d.list.slice(pg * per, pg * per + per);
+    return '<div class="cb">' + head(c, d, pages > 1 ? '<span class="pg2">' + (pg + 1) + "/" + pages + "</span>" : "") +
+      '<div class="grid' + (items.length > 4 ? "" : " one") + '">' + items.map(function (r) {
+        var p = poster(r.m).replace(/<\/div>$/, rating(r.m) + "</div>");
+        return '<div class="cell">' + p + '<div class="t">' + esc(r.m.title) + '</div><div class="meta">' + meta(r.m, { genres: 1, noRating: true }) +
+          '</div><div class="chips">' + r.s.filter(function (x) { return !x.past; }).slice(0, 2).map(chip).join("") + "</div></div>";
+      }).join("") + "</div></div>";
+  }
+  function showCine() {
+    var c = lastData.cinema, d = cineDayList(c, new Date());
+    bgGen++; // cancela vídeo que ainda estava carregando
+    if (NATIVE && document.documentElement.classList.contains("nv")) {
+      NATIVE.stop();
+      document.documentElement.classList.remove("nv");
+      [].slice.call($("bg").querySelectorAll(".nv")).forEach(function (n) { n.remove(); });
+    }
+    clearTimeout(cineHideTimer);
+    var el = $("cine");
+    el.innerHTML = cineHtml(c, d);
+    el.classList.remove("hidden");
+    cineOn = true;
+    cineTurn++;
+    document.body.classList.add("cine");
+    requestAnimationFrame(function () { requestAnimationFrame(function () { el.classList.add("show"); }); });
+  }
+  function hideCine() {
+    var el = $("cine");
+    cineOn = false;
+    el.classList.remove("show");
+    document.body.classList.remove("cine");
+    cineHideTimer = setTimeout(function () { el.classList.add("hidden"); el.innerHTML = ""; }, 1600);
+  }
+
   // ---------- dados ----------
   function apiUrl(extra) {
     var q = new URLSearchParams({ token: CONFIG.token, pessoa: CONFIG.pessoa, days: CONFIG.days, _: Date.now() });
@@ -1009,6 +1186,24 @@
       spotifyDemo: { playing: true, title: "Nome da música", artist: "Artista", image: null, progressMs: 95000, durationMs: 210000 },
       trash: { dias: ["segunda", "sexta"], hora: "07:30" },
       gospel: { ref: "Mt 25,1-13", day: "Exemplo: Domingo do Tempo Comum", text: "Naquele tempo, disse Jesus a seus discípulos esta parábola: “O Reino dos Céus é semelhante a dez virgens que, tomando as suas lâmpadas, saíram ao encontro do esposo. Cinco delas eram imprudentes, e cinco, prudentes. As imprudentes, tomando as suas lâmpadas, não levaram azeite consigo. As prudentes, porém, levaram azeite em suas vasilhas, com as lâmpadas. E, tardando o esposo, cochilaram todas e adormeceram. Mas à meia-noite ouviu-se um clamor: ‘Aí vem o esposo! Saí ao seu encontro!’ Então todas aquelas virgens se levantaram e prepararam as suas lâmpadas. E as imprudentes disseram às prudentes: ‘Dai-nos do vosso azeite, porque as nossas lâmpadas se apagam’. Mas as prudentes responderam: ‘Não seja caso que nos falte a nós e a vós; ide antes aos que o vendem e comprai-o para vós’. E, tendo elas ido comprá-lo, chegou o esposo, e as que estavam preparadas entraram com ele para as bodas, e fechou-se a porta. E depois chegaram também as outras virgens, dizendo: ‘Senhor, Senhor, abre-nos!’ E ele, respondendo, disse: ‘Em verdade vos digo que vos não conheço’. Vigiai, pois, porque não sabeis o dia nem a hora”." },
+      cinema: {
+        name: "No Cinema do Bairro",
+        movies: [
+          { title: "A Grande Aventura", genres: ["Animação", "Aventura"], runtime: 98, rating: "L",
+            synopsis: "Uma turma de amigos atravessa a floresta encantada para devolver uma estrela ao céu antes do amanhecer.",
+            sessions: [{ at: at(0, 13), v: "DUB" }, { at: at(0, 15, 10), v: "DUB" }, { at: at(0, 19), v: "DUB", f: "3D" }, { at: at(1, 13), v: "DUB" }] },
+          { title: "Férias em Família", genres: ["Comédia"], runtime: 105, rating: "12",
+            synopsis: "Uma viagem de férias planejada nos mínimos detalhes sai completamente do controle.",
+            sessions: [{ at: at(0, 17, 10), v: "NAC" }, { at: at(0, 19, 10), v: "NAC" }, { at: at(0, 21, 15), v: "NAC" }, { at: at(1, 17, 10), v: "NAC" }] },
+          { title: "Noite Sem Fim", genres: ["Suspense", "Terror"], runtime: 112, rating: "16",
+            synopsis: "Presos numa estação isolada durante uma tempestade, cinco desconhecidos percebem que não estão sozinhos.",
+            sessions: [{ at: at(0, 21), v: "LEG" }, { at: at(1, 21), v: "LEG" }] },
+          { title: "O Último Mergulho", genres: ["Drama"], runtime: 121, rating: "14",
+            sessions: [{ at: at(0, 17, 20), v: "LEG" }, { at: at(1, 17, 20), v: "LEG" }] },
+          { title: "Robôs do Espaço", genres: ["Ficção científica", "Ação"], runtime: 130, rating: "12",
+            sessions: [{ at: at(0, 15), v: "DUB" }, { at: at(0, 20, 30), v: "LEG" }, { at: at(1, 15), v: "DUB" }] }
+        ]
+      },
       demo: true
     };
   }
@@ -1029,6 +1224,17 @@
     };
     document.head.appendChild(s);
   }
+
+  // ---------- fundo animado de universo (só no app da TV) ----------
+  (function () {
+    var want = (params.get("universo") || "").toLowerCase();
+    if (IS_CAST || want === "0" || !window.HomeDashUniverso) return;
+    if (!want && !window.HomeDashTV) return;
+    var c = $("universe");
+    c.hidden = false;
+    window.HomeDashUniverso.start(c, want || "estrelas");
+    requestAnimationFrame(function () { c.classList.add("show"); });
+  })();
 
   // ---------- inicialização ----------
   updateVerse();
