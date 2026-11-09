@@ -1,6 +1,6 @@
 # homedash · Painel da Família
 
-Um painel para TV com relógio, tempo, agenda e cardápio do dia, versículo e evangelho do dia e fotos.
+Um painel para TV com relógio, tempo, agenda e cardápio do dia, versículo e evangelho do dia, filmes em cartaz e fotos.
 Cada pessoa pode ter o seu painel (`pessoa=pessoa1`, `pessoa2`...) e há um painel geral (`pessoa=familia`).
 
 ![Prévia do painel com dados de exemplo](docs/previa.png)
@@ -126,6 +126,14 @@ No perfil, preencha `lixo` com os dias e a hora da coleta, por exemplo `lixo: { 
 Na base da foto aparece um versículo da Bíblia por dia, o mesmo em todos os perfis. Ele troca à meia-noite. A lista fica em `web/versiculos.js`, em traduções de domínio público. Para acrescentar um versículo, inclua uma linha `["texto", "referência"]`.
 
 O evangelho do dia vem de um serviço gratuito de liturgia diária ([liturgia-diaria](https://github.com/Dancrf/liturgia-diaria)). O script busca o texto e guarda por 6 horas. O card do evangelho reveza com a agenda e o cardápio a cada foto nova, e a letra diminui até o texto inteiro caber. Para conferir, execute `testeEvangelho` no editor do Apps Script. Para desligar o evangelho, deixe `GOSPEL_API` vazio. Se o serviço estiver fora do ar, o card não aparece e o resto do painel continua normal.
+
+## 10. Filmes em cartaz (opcional)
+
+O painel pode mostrar a programação de um cinema: cartaz, gênero, duração, classificação e os horários de cada filme, com a próxima sessão em destaque. A tela de filmes entra no lugar de uma foto, a cada 3 fotos, e fica 45 segundos. Ela mostra as sessões que ainda vão acontecer hoje; depois da última sessão do dia, mostra as de amanhã.
+
+A programação vem do [AdoroCinema](https://www.adorocinema.com/). Procure o cinema lá e abra a página de programação. O endereço termina com `cinema-XXXXX/`. No começo do script, preencha `CINEMA` com esse código e o texto que aparece ao lado de "Em cartaz", por exemplo `const CINEMA = { code: 'XXXXX', name: 'No Cinema do Centro' };`. Os cartazes aparecem até 8 por vez; com mais filmes, a tela alterna as páginas. Para tirar os filmes de um perfil, coloque `cinema: false` nele; para desligar numa TV, use `?cinema=0` no endereço do painel.
+
+O script guarda a programação por 3 horas. Para conferir, execute `testeCinema` no editor do Apps Script. Se o site estiver fora do ar, a tela de filmes não aparece e o resto do painel continua normal.
 
 ## Fotos e vídeos do álbum
 

@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Caveat:wght@500&family=Great+Vibes&family=Cormorant+Garamond:wght@500&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Caveat:wght@500&family=Great+Vibes&family=Cormorant+Garamond:wght@500&display=swap">
 <script src="versiculos.js"></script>
 <script src="universo.js"></script>
 <title>Painel da Família</title>
@@ -19,6 +19,7 @@
     fundo   "cobrir" para a foto preencher a tela toda (corta as bordas); sem ele, a foto aparece inteira
     universo fundo animado atrás da coluna da esquerda: estrelas, nebulosa, galaxia, constelacoes ou 0 (desliga).
             Liga sozinho (estrelas) só no app da TV; no navegador, só se for pedido aqui; no Chromecast, nunca.
+    cinema  0 desliga os filmes em cartaz (que aparecem no lugar de uma foto, a cada 3)
   Sem "api", o painel mostra dados de exemplo.
 -->
 <style>
@@ -192,6 +193,54 @@
   /* Chromecast: a TV corta um pouco a base da imagem (overscan); a barra sobe e o fundo dela desce até a borda */
   .lite #news { bottom: 2.8vh; box-shadow: 0 2.8vh 0 #0b0e13; }
   .lite body.has-news #left { bottom: calc(8.8vh + 2.5vh); }
+
+  /* ---------- cinema: filmes em cartaz, no lugar da foto ---------- */
+  /* começa transparente na borda e escurece aos poucos, como o degradê da foto, para emendar com a coluna da esquerda */
+  #cine { position: fixed; left: 45vw; right: 0; top: 0; bottom: 0; z-index: 1; overflow: hidden; background: #0a0a0c;
+    -webkit-mask-image: linear-gradient(90deg, transparent 0, #000 9%); mask-image: linear-gradient(90deg, transparent 0, #000 9%);
+    opacity: 0; transition: opacity 1.5s ease; text-shadow: none; color: #f4f4f6; }
+  #cine.show { opacity: 1; }
+  body.has-news #cine { bottom: 6vh; }
+  .lite body.has-news #cine { bottom: 8.8vh; }
+  body.cine #verse, body.cine #bg { opacity: 0; }
+  #bg { transition: opacity 1.5s ease; }
+  #verse { transition: opacity 1.5s ease; }
+  #cine .bb { font-family: "Bebas Neue", Impact, "Arial Narrow", sans-serif; font-weight: 400; letter-spacing: 0.02em; }
+  /* cartaz: a imagem cobre o título; sem imagem, fica o título sobre um degradê */
+  #cine .pst { position: relative; overflow: hidden; border-radius: 0.5vw; background-size: cover; background-position: center;
+    box-shadow: 0 0.5vw 1.4vw rgba(0,0,0,0.6); }
+  #cine .pst b { position: absolute; inset: 0; display: flex; align-items: flex-end; padding: 8%; font: 400 1.4vw/1 "Bebas Neue", Impact, sans-serif; color: #fff; z-index: 0; }
+  #cine .pst i { position: absolute; inset: 0; background-size: cover; background-position: center; z-index: 1; }
+  #cine .rt { display: inline-block; min-width: 1.6em; padding: 0.12em 0.3em; border-radius: 0.25em; text-align: center; font-weight: 700;
+    color: #fff; font-size: 0.85em; line-height: 1.2; vertical-align: 0.06em; }
+  #cine .meta { color: #b9bcc6; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  #cine .meta .sep { margin: 0 0.45em; color: #5c606b; }
+  #cine .ss { display: inline-flex; align-items: baseline; gap: 0.35em; padding: 0.28em 0.55em; border-radius: 0.3em; background: rgba(255,255,255,0.1);
+    border: 1px solid rgba(255,255,255,0.16); font-weight: 700; font-variant-numeric: tabular-nums; white-space: nowrap; }
+  #cine .ss i { font-style: normal; font-weight: 600; font-size: 0.68em; color: #aab0bc; letter-spacing: 0.06em; }
+  #cine .ss.past { opacity: 0.35; text-decoration: line-through; }
+  #cine .ss.next { background: #e50914; border-color: #e50914; color: #fff; }
+  #cine .ss.next i { color: #ffd9db; }
+  #cine .chips { display: flex; flex-wrap: wrap; gap: 0.5vw; }
+  #cine .chead { display: flex; align-items: center; gap: 1.2vw; min-height: 3.2vw; }
+  #cine .brand { flex: none; white-space: nowrap; color: #e50914; font-size: 3.2vw; line-height: 0.9; }
+  #cine .cname { flex: 1 1 auto; font-size: 1.5vw; font-weight: 500; color: #e9e9ee; min-width: 0; line-height: 1.15; }
+
+  /* b: parede de cartazes, 4 por linha */
+  .cb { position: absolute; inset: 0; padding: 4vh 2.6vw 3vh 5vw; display: flex; flex-direction: column;
+    background: radial-gradient(ellipse at 60% -20%, #2a0a0d, #11151c 65%); }
+  .cb .grid { flex: 1 1 0; min-height: 0; display: grid; grid-template-columns: repeat(4, 1fr); grid-template-rows: repeat(2, 1fr); gap: 2.4vh 1.3vw; margin-top: 2.4vh; }
+  /* até 4 filmes: uma linha só, com cartazes do mesmo tamanho, no meio da tela */
+  .cb .grid.one { grid-template-rows: calc(50% - 1.2vh); align-content: center; }
+  .cb .cell { display: flex; flex-direction: column; min-height: 0; min-width: 0; }
+  .cb .cell .pst { flex: 1 1 0; min-height: 0; border-radius: 0.5vw; }
+  .cb .cell .pst .rt { position: absolute; z-index: 2; top: 0.6vw; right: 0.6vw; font-size: 0.95vw; box-shadow: 0 0.2vw 0.5vw rgba(0,0,0,0.5); }
+  .cb .t { font-size: 1.15vw; font-weight: 700; margin-top: 0.9vh; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .cb .meta { font-size: 0.92vw; margin-top: 0.2vh; }
+  #cine .cb .chips { font-size: 0.88vw; gap: 0.35vw; margin-top: 0.8vh; flex-wrap: nowrap; overflow: hidden; }
+  .cb .ss { padding: 0.25em 0.4em; }
+  .cb .pg2 { margin-left: auto; font-size: 1vw; color: #9ca1ad; letter-spacing: 0.1em; }
+
 </style>
 </head>
 <body>
@@ -232,6 +281,7 @@
     </div>
   </div>
 
+  <div id="cine" class="hidden"></div>
   <div id="verse" class="hidden"><div class="vt"></div><div class="vr"></div></div>
   <div id="status"></div>
   <div id="news" class="hidden"><div class="tag">Notícias</div><div class="lane"><div id="news-track"></div></div></div>
@@ -674,6 +724,9 @@
   }
   function nextPhoto() {
     if (!photos.length) return;
+    // de vez em quando, os filmes em cartaz entram no lugar de uma foto
+    if (cineOn) hideCine();
+    else if (cineReady() && ++cineCount >= CINE_EVERY) { cineCount = 0; showCine(); scheduleNext(CINE_MS); return; }
     photoIdx = (photoIdx + 1) % photos.length;
     var p = photos[photoIdx];
     bgGen++;
@@ -926,6 +979,107 @@
     }).catch(function () { /* mantém o último tempo exibido */ });
   }
 
+  // ---------- cinema: filmes em cartaz ----------
+  // A cada CINE_EVERY itens do fundo, a tela da direita mostra a programação do cinema no lugar da foto.
+  // Mostra as sessões de hoje; depois da última sessão do dia, as de amanhã.
+  var CINE_PARAM = (params.get("cinema") || "").toLowerCase();
+  var CINE_EVERY = 4, CINE_MS = 45 * 1000, cineCount = 0, cineTurn = 0, cineOn = false, cineHideTimer = null;
+  var RATING_COLORS = { L: "#0c9447", "10": "#0f7dc2", "12": "#d9a400", "14": "#e67824", "16": "#db2827", "18": "#1a1a1a" };
+  function cineDayList(c, now) {
+    var today = startOfDay(now), tomorrow = new Date(today);
+    tomorrow.setDate(tomorrow.getDate() + 1);
+    function on(day) {
+      var end = new Date(day); end.setDate(end.getDate() + 1);
+      return (c.movies || []).map(function (m) {
+        var s = (m.sessions || []).map(function (x) { return { at: new Date(x.at), v: x.v || "", f: x.f || "" }; })
+          .filter(function (x) { return x.at >= day && x.at < end; })
+          .sort(function (a, b) { return a.at - b.at; });
+        var next = null;
+        s.forEach(function (x) { x.past = x.at < now; if (!x.past && !next) next = x; });
+        if (next) next.next = true;
+        return { m: m, s: s, next: next };
+      }).filter(function (r) { return r.next; })
+        .sort(function (a, b) { return a.next.at - b.next.at; });
+    }
+    var list = on(today);
+    if (list.length) return { when: "hoje", day: today, list: list };
+    list = on(tomorrow);
+    return { when: "amanhã", day: tomorrow, list: list };
+  }
+  function cineReady() {
+    var c = lastData && lastData.cinema;
+    return CINE_PARAM !== "0" && !!(c && c.movies && c.movies.length) && cineDayList(c, new Date()).list.length > 0;
+  }
+  function runtime(min) {
+    min = +min || 0;
+    if (!min) return "";
+    var h = Math.floor(min / 60), m = min % 60;
+    return (h ? h + "h" : "") + (m ? (h ? " " : "") + m + "min" : "");
+  }
+  function hue(s) { var h = 0; for (var i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) % 360; return h; }
+  function poster(m) {
+    var h = hue(m.title || "");
+    return '<div class="pst" style="background-image:linear-gradient(160deg,hsl(' + h + ',55%,32%),hsl(' + ((h + 40) % 360) + ',60%,12%))">' +
+      "<b>" + esc(m.title) + "</b>" + (m.poster ? '<i style="background-image:url(&quot;' + esc(m.poster) + '&quot;)"></i>' : "") + "</div>";
+  }
+  function rating(m) {
+    var r = String(m.rating || "").toUpperCase();
+    if (!r) return "";
+    return '<span class="rt" style="background:' + (RATING_COLORS[r] || "#5a5f6b") + '">' + esc(r) + "</span>";
+  }
+  function meta(m, opts) {
+    var parts = [];
+    var g = (m.genres || []).slice(0, opts && opts.genres || 2).join(", ");
+    if (g) parts.push(esc(g));
+    if (m.runtime) parts.push(runtime(m.runtime));
+    if (!(opts && opts.noRating) && rating(m)) parts.push(rating(m));
+    return parts.join('<span class="sep">•</span>');
+  }
+  function chip(x) {
+    return '<span class="ss' + (x.past ? " past" : "") + (x.next ? " next" : "") + '">' + hm(x.at) +
+      (x.v || x.f ? "<i>" + esc([x.v, x.f].filter(Boolean).join(" ")) + "</i>" : "") + "</span>";
+  }
+  // "Em cartaz" e, ao lado, o nome do cinema como está no script (ex.: "No Cinema do Centro")
+  function head(c, d, extra) {
+    return '<div class="chead"><span class="brand bb">' + (d.when === "hoje" ? "Em cartaz" : "Em cartaz amanhã") + '</span><span class="cname">' +
+      esc(c.name || "") + "</span>" + (extra || "") + "</div>";
+  }
+  // parede de cartazes: até 8 por vez; com mais filmes, alterna as páginas a cada vez
+  function cineHtml(c, d) {
+    var per = 8, pages = Math.ceil(d.list.length / per), pg = cineTurn % pages;
+    var items = d.list.slice(pg * per, pg * per + per);
+    return '<div class="cb">' + head(c, d, pages > 1 ? '<span class="pg2">' + (pg + 1) + "/" + pages + "</span>" : "") +
+      '<div class="grid' + (items.length > 4 ? "" : " one") + '">' + items.map(function (r) {
+        var p = poster(r.m).replace(/<\/div>$/, rating(r.m) + "</div>");
+        return '<div class="cell">' + p + '<div class="t">' + esc(r.m.title) + '</div><div class="meta">' + meta(r.m, { genres: 1, noRating: true }) +
+          '</div><div class="chips">' + r.s.filter(function (x) { return !x.past; }).slice(0, 2).map(chip).join("") + "</div></div>";
+      }).join("") + "</div></div>";
+  }
+  function showCine() {
+    var c = lastData.cinema, d = cineDayList(c, new Date());
+    bgGen++; // cancela vídeo que ainda estava carregando
+    if (NATIVE && document.documentElement.classList.contains("nv")) {
+      NATIVE.stop();
+      document.documentElement.classList.remove("nv");
+      [].slice.call($("bg").querySelectorAll(".nv")).forEach(function (n) { n.remove(); });
+    }
+    clearTimeout(cineHideTimer);
+    var el = $("cine");
+    el.innerHTML = cineHtml(c, d);
+    el.classList.remove("hidden");
+    cineOn = true;
+    cineTurn++;
+    document.body.classList.add("cine");
+    requestAnimationFrame(function () { requestAnimationFrame(function () { el.classList.add("show"); }); });
+  }
+  function hideCine() {
+    var el = $("cine");
+    cineOn = false;
+    el.classList.remove("show");
+    document.body.classList.remove("cine");
+    cineHideTimer = setTimeout(function () { el.classList.add("hidden"); el.innerHTML = ""; }, 1600);
+  }
+
   // ---------- dados ----------
   function apiUrl(extra) {
     var q = new URLSearchParams({ token: CONFIG.token, pessoa: CONFIG.pessoa, days: CONFIG.days, _: Date.now() });
@@ -1008,6 +1162,24 @@
       spotifyDemo: { playing: true, title: "Nome da música", artist: "Artista", image: null, progressMs: 95000, durationMs: 210000 },
       trash: { dias: ["segunda", "sexta"], hora: "07:30" },
       gospel: { ref: "Mt 25,1-13", day: "Exemplo: Domingo do Tempo Comum", text: "Naquele tempo, disse Jesus a seus discípulos esta parábola: “O Reino dos Céus é semelhante a dez virgens que, tomando as suas lâmpadas, saíram ao encontro do esposo. Cinco delas eram imprudentes, e cinco, prudentes. As imprudentes, tomando as suas lâmpadas, não levaram azeite consigo. As prudentes, porém, levaram azeite em suas vasilhas, com as lâmpadas. E, tardando o esposo, cochilaram todas e adormeceram. Mas à meia-noite ouviu-se um clamor: ‘Aí vem o esposo! Saí ao seu encontro!’ Então todas aquelas virgens se levantaram e prepararam as suas lâmpadas. E as imprudentes disseram às prudentes: ‘Dai-nos do vosso azeite, porque as nossas lâmpadas se apagam’. Mas as prudentes responderam: ‘Não seja caso que nos falte a nós e a vós; ide antes aos que o vendem e comprai-o para vós’. E, tendo elas ido comprá-lo, chegou o esposo, e as que estavam preparadas entraram com ele para as bodas, e fechou-se a porta. E depois chegaram também as outras virgens, dizendo: ‘Senhor, Senhor, abre-nos!’ E ele, respondendo, disse: ‘Em verdade vos digo que vos não conheço’. Vigiai, pois, porque não sabeis o dia nem a hora”." },
+      cinema: {
+        name: "No Cinema do Bairro",
+        movies: [
+          { title: "A Grande Aventura", genres: ["Animação", "Aventura"], runtime: 98, rating: "L",
+            synopsis: "Uma turma de amigos atravessa a floresta encantada para devolver uma estrela ao céu antes do amanhecer.",
+            sessions: [{ at: at(0, 13), v: "DUB" }, { at: at(0, 15, 10), v: "DUB" }, { at: at(0, 19), v: "DUB", f: "3D" }, { at: at(1, 13), v: "DUB" }] },
+          { title: "Férias em Família", genres: ["Comédia"], runtime: 105, rating: "12",
+            synopsis: "Uma viagem de férias planejada nos mínimos detalhes sai completamente do controle.",
+            sessions: [{ at: at(0, 17, 10), v: "NAC" }, { at: at(0, 19, 10), v: "NAC" }, { at: at(0, 21, 15), v: "NAC" }, { at: at(1, 17, 10), v: "NAC" }] },
+          { title: "Noite Sem Fim", genres: ["Suspense", "Terror"], runtime: 112, rating: "16",
+            synopsis: "Presos numa estação isolada durante uma tempestade, cinco desconhecidos percebem que não estão sozinhos.",
+            sessions: [{ at: at(0, 21), v: "LEG" }, { at: at(1, 21), v: "LEG" }] },
+          { title: "O Último Mergulho", genres: ["Drama"], runtime: 121, rating: "14",
+            sessions: [{ at: at(0, 17, 20), v: "LEG" }, { at: at(1, 17, 20), v: "LEG" }] },
+          { title: "Robôs do Espaço", genres: ["Ficção científica", "Ação"], runtime: 130, rating: "12",
+            sessions: [{ at: at(0, 15), v: "DUB" }, { at: at(0, 20, 30), v: "LEG" }, { at: at(1, 15), v: "DUB" }] }
+        ]
+      },
       demo: true
     };
   }
