@@ -54,9 +54,12 @@
   #bg .layer .main { object-fit: contain; }
   #bg .layer .fill { object-fit: cover; filter: blur(2vw) brightness(0.55); transform: scale(1.1); }
   .lite #bg .layer .fill { filter: brightness(0.5); }
+  /* modo leve (Chromecast antigo, 512 MB): troca de foto sem esmaecer, sem sombras e sem a cópia
+     desfocada da foto nas laterais; cada uma dessas coisas ocupa memória de vídeo */
+  .lite #bg .layer, .lite #shade, .lite #shade2 { transition: none; }
+  .lite body, .lite #verse .vt, .lite #verse .vr { text-shadow: none; }
+  .lite #bg .duo figure, .lite #np-art { box-shadow: none; }
   .lite #bg .duo { background: #1a1612; }
-  .lite #bg .duo figure { box-shadow: 0 0.6vw 1vw rgba(0,0,0,0.6); }
-  .lite #bg .layer, .lite #shade, .lite #shade2 { transition-duration: 1s; }
   #bg.cover .layer .main { object-fit: cover; }
   #bg.cover .layer .fill { display: none; }
   /* preto à esquerda, com degradê até a foto */
@@ -182,6 +185,8 @@
   /* Chromecast: a TV corta um pouco a base da imagem (overscan); a barra sobe e o fundo dela desce até a borda */
   .lite #news { bottom: 2.8vh; box-shadow: 0 2.8vh 0 #0b0e13; }
   .lite body.has-news #left { bottom: calc(8.8vh + 2.5vh); }
+  /* no modo leve a barra não rola: mostra uma manchete por vez */
+  .lite #news-track { position: static; height: 100%; padding-left: 1.6vw; overflow: hidden; will-change: auto; }
 </style>
 </head>
 <body>
@@ -410,11 +415,11 @@
     document.body.classList.toggle("duo", el.classList.contains("duo"));
     if (el.classList.contains("nv")) document.documentElement.classList.add("nv");
     requestAnimationFrame(function () { requestAnimationFrame(function () { el.classList.add("show"); }); });
-    var old = box.children;
     setTimeout(function () {
       while (box.children.length > 1 && box.firstChild !== el) {
         var f = box.firstChild;
         if (f.tagName === "VIDEO") releaseVideo(f);
+        freeImages(f);
         f.remove();
       }
       // o vídeo nativo saiu de cena: para o player e volta o fundo
@@ -422,7 +427,13 @@
         document.documentElement.classList.remove("nv");
         NATIVE.stop();
       }
-    }, 2200);
+    }, IS_CAST ? 300 : 2200);
+  }
+  // Solta a imagem decodificada já ao sair de cena (o navegador antigo do Chromecast demora a liberar).
+  var BLANK = "data:image/gif;base64,R0lGODlhAQABAAAAACw=";
+  function freeImages(el) {
+    if (!el.querySelectorAll) return;
+    Array.prototype.forEach.call(el.querySelectorAll("img"), function (i) { i.removeAttribute("srcset"); i.src = BLANK; });
   }
   // Vídeo do álbum: só aparece depois de baixado, para não travar no meio. Enquanto isso, a foto
   // anterior continua na tela. Toca sem som e passa para o próximo item quando acaba (máx. 2 min).
@@ -637,7 +648,7 @@
       img.className = "main";
       img.decoding = "async";
       img.onload = function () {
-        if (!PHOTO_COVER) {
+        if (!PHOTO_COVER && !IS_CAST) {
           var fill = new Image();
           fill.className = "fill";
           fill.src = /googleusercontent\.com/.test(src) ? src.replace(/=[^=\/]*$/, "=w96-h54-c") : src;
@@ -839,10 +850,19 @@
     if (!window.ResizeObserver) setTimeout(fitAll, 0);
     if (on && !newsRunning) runNews();
   }
+  var newsIdx = 0, newsTimer = null;
   function runNews() {
     var track = $("news-track");
     if (!news.length) { newsRunning = false; return; }
     newsRunning = true;
+    if (IS_CAST) {
+      // modo leve: uma manchete por vez, trocando a cada 10 s, sem animação
+      var n = news[newsIdx++ % news.length];
+      track.innerHTML = (n.source ? '<span class="src">' + esc(n.source) + "</span>" : "") + "<span>" + esc(n.title) + "</span>";
+      clearTimeout(newsTimer);
+      newsTimer = setTimeout(runNews, 10000);
+      return;
+    }
     track.innerHTML = shuffle(news).slice(0, 30).map(function (n) {
       return (n.source ? '<span class="src">' + esc(n.source) + "</span>" : "") + "<span>" + esc(n.title) + '</span><span class="sep">•</span>';
     }).join("");
@@ -996,8 +1016,8 @@
   // ---------- Chromecast: modo leve e receptor aberto ----------
   if (IS_CAST) {
     document.documentElement.className += " lite";
-    // a memória do Chromecast antigo é pequena: recarrega a página a cada 4 horas
-    setTimeout(function () { if (navigator.onLine !== false) location.reload(); }, 4 * 3600 * 1000);
+    // a memória do Chromecast antigo é pequena: recarrega a página a cada hora para liberar tudo
+    setTimeout(function () { if (navigator.onLine !== false) location.reload(); }, 3600 * 1000);
   }
   // Só quando a página é o próprio app do Chromecast. Enviada pelo catt (cast_site), ela roda
   // dentro de outro receptor, e iniciar um segundo receptor ali só atrapalha.

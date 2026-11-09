@@ -102,6 +102,8 @@ Para manter sempre ligado, agende esse comando a cada 15 minutos (cron) em um ap
 
 Se alguém transmitir YouTube ou outra coisa, o painel sai e volta no próximo envio.
 
+**Modo leve.** No Chromecast (ou com `&leve=1` no endereço), o painel economiza memória, porque o modelo antigo tem só 512 MB e reinicia quando ela acaba. As fotos trocam sem esmaecer e sem a cópia desfocada nas laterais, não há sombras, a barra de notícias mostra uma manchete por vez em vez de rolar, e a página se recarrega sozinha a cada hora.
+
 ## 6. Spotify: "Tocando agora" (opcional)
 
 Mostra a capa, a música e o artista do que está tocando na sua conta do Spotify, em qualquer aparelho. Desde fevereiro de 2026, o Spotify exige que o dono do app de desenvolvedor tenha **Premium**.
