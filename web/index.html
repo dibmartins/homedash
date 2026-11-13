@@ -300,20 +300,12 @@
   #corr .r .ct { flex: none; max-width: 36%; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-size: 0.85vw; }
   #corr .r .kms { flex: none; font-size: 0.78vw; }
   #corr .r.near .nm { color: #ffb37a; }
-  #corr .gap { height: 1.6vh; }
-  /* opção A: colunas por dia */
-  #corr .cols { flex: 1 1 0; min-height: 0; display: grid; gap: 1vw; margin-top: 2.6vh; }
-  #corr .col { min-width: 0; min-height: 0; display: flex; flex-direction: column; gap: 0.7vh; overflow: hidden; }
-  #corr .col .hd { display: flex; align-items: baseline; gap: 0.5vw; border-bottom: 2px solid #ff7a1a; padding-bottom: 0.6vh; margin-bottom: 0.4vh; }
-  #corr .col .hd .n { font-size: 2.6vw; line-height: 0.9; }
-  #corr .col .hd .w { font-size: 0.85vw; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; color: #ff9a4d; }
-  #corr .col .hd .q { margin-left: auto; font-size: 0.8vw; }
-  #corr .cc { padding: 0.6vw 0.7vw; border-radius: 0.45vw; background: rgba(255,255,255,0.05); flex: none; }
-  #corr .cc.near { background: linear-gradient(160deg, rgba(255,122,26,0.28), rgba(255,122,26,0.08)); border: 1px solid rgba(255,122,26,0.4); }
-  #corr .cc .nm { font-size: 0.95vw; font-weight: 600; line-height: 1.2; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
-  #corr .cc .ln { display: flex; align-items: baseline; gap: 0.5vw; margin-top: 0.4vh; font-size: 0.78vw; }
-  #corr .cc .ln .ct { flex: 1 1 auto; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-  #corr .col .mais { font-size: 0.85vw; padding: 0.4vh 0.2vw; }
+  /* com fotos: a lista fica numa coluna e a foto ao lado, em pé */
+  #corr .baixo { flex: 1 1 0; min-height: 0; display: flex; gap: 1.6vw; }
+  #corr .baixo .lista { -webkit-column-count: 1; column-count: 1; }
+  #corr .foto { flex: none; width: 36%; border-radius: 0.6vw; background: #1b1f27 center 30% / cover no-repeat; transition: opacity 0.8s ease; opacity: 0; }
+  #corr .foto.ok { opacity: 1; }
+  .lite #corr .foto { transition: none; }
 
   /* ---------- manutenção do carro, no lugar da foto ---------- */
   #carro { position: fixed; left: 45vw; right: 0; top: 0; bottom: 0; z-index: 1; overflow: hidden; color: #e5e7eb;
@@ -1264,7 +1256,6 @@
   // Em cima, em destaque, as próximas nas cidades de "perto" (configuradas no script); embaixo, as
   // dos próximos dias no estado, por data. Se não couberem, cada vez que a tela aparece mostra a página seguinte.
   var CORR_PARAM = (params.get("corridas") || "").toLowerCase();
-  var CORR_LAYOUT = (params.get("corridasLayout") || "b").toLowerCase();
   var CORR_EVERY = 5, CORR_MS = 40 * 1000, CORR_DAYS = 10, CORR_PERTO_DAYS = 60;
   var corrCount = 0, corrTurn = 0, corrOn = false, corrHideTimer = null;
   var SEMANA = ["dom", "seg", "ter", "qua", "qui", "sex", "sáb"];
@@ -1283,19 +1274,20 @@
     return CORR_PARAM !== "0" && !!(c && c.races && c.races.length) &&
       corrList(c).some(function (x) { return x.dias < CORR_DAYS || (x.near && x.dias < CORR_PERTO_DAYS); });
   }
-  function corrKm(r, max) { return (r.km || []).length ? '<span class="kms">' + r.km.slice(0, max || 4).map(function (k) { return '<span class="km">' + esc(k) + "k</span>"; }).join("") + "</span>" : ""; }
+  function corrKm(r) { return (r.km || []).length ? '<span class="kms">' + r.km.map(function (k) { return '<span class="km">' + esc(k) + "k</span>"; }).join("") + "</span>" : ""; }
   function corrEm(n) { return n === 0 ? "hoje" : n === 1 ? "amanhã" : "daqui a " + n + " dias"; }
   function corrHead(c, extra) {
     return '<div class="chead"><span class="brand bb">Corridas de rua</span><span class="cname">Próximas no ' + esc(c.uf || "estado") + "</span>" + (extra || "") + "</div>";
   }
-  // B: destaque de perto + lista do estado em duas colunas, por dia
-  function corrHtmlB(c, all) {
+  // destaque de perto + lista do estado em duas colunas, por dia
+  function corrHtml(c, all) {
     var near = all.filter(function (x) { return x.near && x.dias < CORR_PERTO_DAYS; }).slice(0, 3);
     var used = {}; near.forEach(function (x) { used[x.r.id] = true; });
     var rest = all.filter(function (x) { return x.dias < CORR_DAYS && !used[x.r.id]; });
     // perto primeiro dentro de cada dia
     rest.sort(function (a, b) { return a.d - b.d || (b.near - a.near); });
-    var per = near.length ? 24 : 36, pages = Math.max(1, Math.ceil(rest.length / per)), pg = corrTurn % pages;
+    var foto = corrFoto(c);
+    var per = (near.length ? 24 : 36) / (foto ? 2 : 1), pages = Math.max(1, Math.ceil(rest.length / per)), pg = corrTurn % pages;
     var items = rest.slice(pg * per, pg * per + per);
     var h = corrHead(c, pages > 1 ? '<span class="pg2">' + (pg + 1) + "/" + pages + "</span>" : "");
     if (near.length) {
@@ -1305,7 +1297,7 @@
           '</div><div class="ct mu">' + esc(x.r.city) + "</div>" + corrKm(x.r) + '<div class="em">' + corrEm(x.dias) + "</div></div></div>";
       }).join("") + "</div>";
     }
-    h += '<div class="tit">No estado · próximos dias</div><div class="lista">';
+    h += '<div class="tit">No estado · próximos dias</div>' + (foto ? '<div class="baixo">' : "") + '<div class="lista">';
     var last = "";
     items.forEach(function (x) {
       if (x.r.d !== last) {
@@ -1316,25 +1308,22 @@
       }
       h += '<div class="r' + (x.near ? " near" : "") + '">' + corrKm(x.r) + '<span class="nm">' + esc(x.r.name) + '</span><span class="ct mu">' + esc(x.r.city) + "</span></div>";
     });
-    return h + "</div>";
+    return h + "</div>" + (foto ? '<div class="foto" id="corr-foto"></div></div>' : "");
   }
-  // A: uma coluna por dia com corrida (até 4 dias), perto no topo de cada coluna
-  function corrHtmlA(c, all) {
-    var days = [];
-    all.forEach(function (x) { if (x.dias < CORR_DAYS && days.indexOf(x.r.d) < 0) days.push(x.r.d); });
-    var per = 4, pages = Math.max(1, Math.ceil(days.length / per)), pg = corrTurn % pages;
-    var show = days.slice(pg * per, pg * per + per);
-    var h = corrHead(c, pages > 1 ? '<span class="pg2">' + (pg + 1) + "/" + pages + "</span>" : "");
-    h += '<div class="cols" style="grid-template-columns:repeat(' + Math.max(show.length, 3) + ',1fr)">';
-    show.forEach(function (d) {
-      var xs = all.filter(function (x) { return x.r.d === d; }).sort(function (a, b) { return b.near - a.near; });
-      var dt = xs[0].d, max = xs.length > 7 ? 6 : 7;
-      h += '<div class="col"><div class="hd"><span class="n bb">' + dt.getDate() + '</span><span class="w">' + SEMANA[dt.getDay()] + " · " + MESES[dt.getMonth()] +
-        '</span><span class="q mu">' + xs.length + "</span></div>" + xs.slice(0, max).map(function (x) {
-          return '<div class="cc' + (x.near ? " near" : "") + '"><div class="nm">' + esc(x.r.name) + '</div><div class="ln"><span class="ct mu">' + esc(x.r.city) + "</span>" + corrKm(x.r, 3) + "</div></div>";
-        }).join("") + (xs.length > max ? '<div class="mais mu">+ ' + (xs.length - max) + (xs.length - max > 1 ? " corridas" : " corrida") + "</div>" : "") + "</div>";
-    });
-    return h + "</div>";
+  // uma das fotos da pasta configurada no script, uma diferente a cada vez que a tela aparece
+  function corrFoto(c) {
+    var f = c.fotos || [];
+    return f.length ? f[corrTurn % f.length] : null;
+  }
+  function corrLoadFoto(f) {
+    var p = f.url ? Promise.resolve(f.url) : fetch(apiUrl({ foto: f.id, w: 640 })).then(function (r) { return r.json(); }).then(function (j) { return j.dataUrl; });
+    p.then(function (src) {
+      var box = $("corr-foto");
+      if (!src || !box || !corrOn) return;
+      var img = new Image();
+      img.onload = function () { box.style.backgroundImage = 'url("' + src + '")'; box.classList.add("ok"); };
+      img.src = src;
+    }).catch(function () {});
   }
   function showCorr() {
     var c = lastData.corridas, all = corrList(c);
@@ -1346,9 +1335,11 @@
     }
     clearTimeout(corrHideTimer);
     var el = $("corr");
-    el.innerHTML = CORR_LAYOUT === "a" ? corrHtmlA(c, all) : corrHtmlB(c, all);
+    var foto = corrFoto(c);
+    el.innerHTML = corrHtml(c, all);
     el.classList.remove("hidden");
     corrOn = true;
+    if (foto) corrLoadFoto(foto);
     corrTurn++;
     document.body.classList.add("corr");
     requestAnimationFrame(function () { requestAnimationFrame(function () { el.classList.add("show"); }); });

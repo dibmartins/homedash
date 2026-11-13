@@ -77,8 +77,10 @@ const CINEMA = { code: '', name: '' };
 // Corridas de rua do estado, lidas do calendário do CorridasBR (corridasbr.com.br/<uf>/calendario.asp).
 // uf: a sigla do estado no endereço, ex.: 'rj'.  Vazio = sem corridas.
 // perto: cidades que aparecem em destaque, ex.: ['Niterói', 'Maricá'] (como estão escritas no site).
+// fotos: ID de uma pasta do Google Drive com fotos para ilustrar a tela (a pasta pode continuar privada).
+//        O ID é o trecho do endereço da pasta depois de /folders/.  Vazio = sem fotos.
 // A tela de corridas aparece no lugar de uma foto de vez em quando. Para desligar num perfil, use corridas: false nele.
-const CORRIDAS = { uf: 'rj', perto: [] };
+const CORRIDAS = { uf: 'rj', perto: [], fotos: '' };
 
 function doGet(e) {
   const p = (e && e.parameter) || {};
@@ -286,7 +288,8 @@ function getCorridas_() {
   const cache = CacheService.getScriptCache();
   const hit = cache.get(key);
   if (hit) return JSON.parse(hit);
-  const out = { uf: CORRIDAS.uf.toUpperCase(), perto: CORRIDAS.perto || [], races: corridasParse_(corridasFetch_()) };
+  const out = { uf: CORRIDAS.uf.toUpperCase(), perto: CORRIDAS.perto || [], races: corridasParse_(corridasFetch_()),
+    fotos: CORRIDAS.fotos ? getPhotos_({ folder: CORRIDAS.fotos }) : [] };
   try { cache.put(key, JSON.stringify(out), out.races.length ? 6 * 3600 : 600); } catch (err) {}
   return out;
 }
@@ -617,6 +620,7 @@ function allowedPhotoIds_() {
     const cfg = PROFILES[k].photos || {};
     if (cfg.folder) getPhotos_({ folder: cfg.folder }).forEach(f => { ids[f.id] = true; });
   });
+  if (CORRIDAS.fotos) getPhotos_({ folder: CORRIDAS.fotos }).forEach(f => { ids[f.id] = true; });
   try { cache.put('fotos-permitidas', JSON.stringify(ids), 600); } catch (err) {}
   return ids;
 }
