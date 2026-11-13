@@ -40,7 +40,11 @@ class Prefs(context: Context) {
 
     /** Monta o endereço do painel com os parâmetros que o index.html entende. */
     fun dashboardUrl(): String {
-        val b = Uri.parse(pageUrl).buildUpon()
+        // "Carro" abre a tela de manutenção (carro.html), ao lado do index.html do painel
+        val page = if (profile == CAR_SCREEN) {
+            try { java.net.URI(pageUrl.substringBefore('?')).resolve("carro.html").toString() } catch (e: Exception) { pageUrl }
+        } else pageUrl
+        val b = Uri.parse(page).buildUpon()
         b.appendQueryParameter("pessoa", profile)
         if (apiUrl.isNotEmpty()) b.appendQueryParameter("api", apiUrl)
         if (token.isNotEmpty()) b.appendQueryParameter("token", token)
@@ -62,11 +66,15 @@ class Prefs(context: Context) {
         private const val KEY_LATLON = "lat_lon"
         private const val KEY_BOOT = "start_on_boot"
 
+        const val CAR_SCREEN = "carro"
+
+        /** Telas que as setas ◀ ▶ do controle alternam. "carro" não é perfil do script: abre carro.html. */
         val PROFILES = linkedMapOf(
             "familia" to "Família",
             "pessoa1" to "Pessoa 1",
             "pessoa2" to "Pessoa 2",
             "pessoa3" to "Pessoa 3",
+            CAR_SCREEN to "Carro",
         )
     }
 }
