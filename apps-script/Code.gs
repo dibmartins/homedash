@@ -760,13 +760,12 @@ function newsSourceName_(site) {
 //   "sem registro" deixa cinza, pedindo a data. Sem data nem km, o item conta desde a compra.
 //   Observação aparece em amarelo no card (ex.: "Recomendado na revisão").
 function getCar_(sheet) {
-  const tabItens = sheet.getSheetByName('Manutenção');
-  if (!tabItens) return null;
+  if (!tab_(sheet, 'Manutenção')) return null;
   const day = v => v instanceof Date ? Utilities.formatDate(v, Session.getScriptTimeZone(), 'yyyy-MM-dd') : String(v || '').trim();
   const val = v => v instanceof Date ? day(v) : (typeof v === 'number' ? v : String(v || '').trim());
   const norm = s => String(s || '').trim().toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
   const campos = {};
-  const tab = sheet.getSheetByName('Carro');
+  const tab = tab_(sheet, 'Carro');
   if (tab && tab.getLastRow() >= 1) {
     tab.getRange(1, 1, tab.getLastRow(), 2).getValues().forEach(r => { if (r[0] !== '') campos[norm(r[0])] = val(r[1]); });
   }
@@ -784,12 +783,20 @@ function getCar_(sheet) {
 /** Rode no editor para conferir o que a tela do carro vai mostrar. */
 function testeCarro() {
   if (!SHEET_ID) { Logger.log('defina SHEET_ID'); return; }
-  Logger.log(JSON.stringify(getCar_(SpreadsheetApp.openById(SHEET_ID)), null, 2));
+  const sheet = SpreadsheetApp.openById(SHEET_ID);
+  Logger.log('Planilha: ' + sheet.getName() + ' · abas: ' + sheet.getSheets().map(t => t.getName()).join(', '));
+  const car = getCar_(sheet);
+  Logger.log(car ? JSON.stringify(car, null, 2) : 'Não achei a aba "Manutenção" nesta planilha.');
 }
 
 // ---------------- utilitários ----------------
+// Acha a aba pelo nome sem ligar para maiúsculas, acentos e espaços nas pontas ("manutencao" = "Manutenção").
+function tab_(sheet, name) {
+  const norm = s => String(s || '').trim().toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+  return sheet.getSheetByName(name) || sheet.getSheets().filter(t => norm(t.getName()) === norm(name))[0] || null;
+}
 function rows_(sheet, name) {
-  const tab = sheet.getSheetByName(name);
+  const tab = tab_(sheet, name);
   if (!tab || tab.getLastRow() < 2) return [];
   return tab.getRange(2, 1, tab.getLastRow() - 1, Math.max(tab.getLastColumn(), 4)).getValues();
 }
