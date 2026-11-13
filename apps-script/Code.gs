@@ -9,7 +9,8 @@
 const TOKEN = 'troque-este-segredo';
 
 // ID da planilha "Painel da Família" (o trecho entre /d/ e /edit na URL).
-// Só a aba "Cardápio" é usada (colunas Dia | Almoço | Jantar). Vazio = sem cardápio.
+// Abas usadas: "Cardápio" (colunas Dia | Almoço | Jantar) e, para a tela de manutenção do carro,
+// "Carro" e "Manutenção" (veja getCar_). Vazio = sem cardápio e sem a tela do carro.
 const SHEET_ID = '';
 
 // Um perfil por painel. Use ?pessoa=<chave> na URL do painel.
@@ -107,7 +108,7 @@ function doGet(e) {
   const safe = (label, fn, fallback) => {
     try { return fn(); } catch (err) { warnings.push(label + ': ' + err.message); return fallback; }
   };
-  const sheet = SHEET_ID && profile.menu ? safe('planilha', () => SpreadsheetApp.openById(SHEET_ID), null) : null;
+  const sheet = SHEET_ID && (profile.menu || profile.carro !== false) ? safe('planilha', () => SpreadsheetApp.openById(SHEET_ID), null) : null;
   const body = JSON.stringify({
     name: profile.name,
     events: safe('agenda', () => getEvents_(profile, days), []),
@@ -118,6 +119,7 @@ function doGet(e) {
     trash: profile.lixo || null,
     gospel: GOSPEL_API ? safe('evangelho', getGospel_, null) : null,
     cinema: CINEMA.code && profile.cinema !== false ? safe('cinema', getCinema_, null) : null,
+    carro: sheet && profile.carro !== false ? safe('carro', () => getCar_(sheet), null) : null,
     warnings: warnings,
     updated: new Date().toISOString(),
   });
@@ -744,6 +746,45 @@ function decodeHtml_(s) {
 function newsSourceName_(site) {
   const host = String(site).replace(/^https?:\/\//i, '').replace(/\/.*$/, '').replace(/^www\./i, '');
   return host.split('.')[0];
+}
+
+// ---------------- Manutenção do carro ----------------
+// A tela do carro entra no lugar de uma foto, de tempos em tempos. Sem a aba "Manutenção", ela não aparece.
+// Para tirar de um perfil, coloque carro: false nele.
+// Aba "Carro": duas colunas, Campo | Valor. Campos lidos (todos opcionais):
+//   Nome, Versão, Data da compra, Km atual, Data do km, Km por mês, Cor (ex.: #eef1f4)
+//   Sem "Km por mês", a média é calculada pela data da compra e pelo km mais recente.
+// Aba "Manutenção": uma linha por item, colunas
+//   Item | Grupo | Data da última troca | Km na última troca | Trocar a cada (km) | Trocar a cada (meses) | Situação | Observação
+//   Situação (opcional): "trocar" deixa o item vermelho (ex.: desgaste apontado pela oficina);
+//   "sem registro" deixa cinza, pedindo a data. Sem data nem km, o item conta desde a compra.
+//   Observação aparece em amarelo no card (ex.: "Recomendado na revisão").
+function getCar_(sheet) {
+  const tabItens = sheet.getSheetByName('Manutenção');
+  if (!tabItens) return null;
+  const day = v => v instanceof Date ? Utilities.formatDate(v, Session.getScriptTimeZone(), 'yyyy-MM-dd') : String(v || '').trim();
+  const val = v => v instanceof Date ? day(v) : (typeof v === 'number' ? v : String(v || '').trim());
+  const norm = s => String(s || '').trim().toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+  const campos = {};
+  const tab = sheet.getSheetByName('Carro');
+  if (tab && tab.getLastRow() >= 1) {
+    tab.getRange(1, 1, tab.getLastRow(), 2).getValues().forEach(r => { if (r[0] !== '') campos[norm(r[0])] = val(r[1]); });
+  }
+  const carro = {
+    nome: campos['nome'] || '', versao: campos['versao'] || '', compra: campos['data da compra'] || '',
+    km: campos['km atual'] || '', kmData: campos['data do km'] || '', kmMes: campos['km por mes'] || '', cor: campos['cor'] || '',
+  };
+  const itens = rows_(sheet, 'Manutenção').filter(r => String(r[0] || '').trim()).map(r => ({
+    nome: String(r[0]).trim(), grupo: String(r[1] || '').trim(), data: day(r[2]), km: val(r[3]),
+    intervaloKm: val(r[4]), intervaloMeses: val(r[5]), situacao: String(r[6] || '').trim(), obs: String(r[7] || '').trim(),
+  }));
+  return { carro: carro, itens: itens };
+}
+
+/** Rode no editor para conferir o que a tela do carro vai mostrar. */
+function testeCarro() {
+  if (!SHEET_ID) { Logger.log('defina SHEET_ID'); return; }
+  Logger.log(JSON.stringify(getCar_(SpreadsheetApp.openById(SHEET_ID)), null, 2));
 }
 
 // ---------------- utilitários ----------------
