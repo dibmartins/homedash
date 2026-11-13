@@ -9,7 +9,7 @@ Cada pessoa pode ter o seu painel (`pessoa=pessoa1`, `pessoa2`...) e há um pain
 
 | Pasta | O que tem |
 |---|---|
-| `web/` | O painel (`index.html`). Abra no navegador para ver com dados de exemplo. Publicado no GitHub Pages a cada mudança na `main`. |
+| `web/` | O painel (`index.html`) e a tela de manutenção do carro (`carro.html`). Abra no navegador para ver com dados de exemplo. Publicado no GitHub Pages a cada mudança na `main`. |
 | `apps-script/` | O script do Google Apps Script (`Code.gs` + `appsscript.json`) que lê agenda, cardápio (planilha) e fotos. |
 | `android/` | App Android TV em Kotlin: um WebView em tela cheia que abre o painel ao ligar a TV. |
 | `scripts/` | `manter-painel-chromecast.sh`: mantém o painel num Chromecast sem Google TV a partir de um celular Android com Termux. |
@@ -136,6 +136,21 @@ O painel pode mostrar a programação de um cinema: cartaz, gênero, duração, 
 A programação vem do [AdoroCinema](https://www.adorocinema.com/). Procure o cinema lá e abra a página de programação. O endereço termina com `cinema-XXXXX/`. No começo do script, preencha `CINEMA` com esse código e o texto que aparece ao lado de "Em cartaz", por exemplo `const CINEMA = { code: 'XXXXX', name: 'No Cinema do Centro' };`. Os cartazes aparecem até 8 por vez; com mais filmes, a tela alterna as páginas. Para tirar os filmes de um perfil, coloque `cinema: false` nele; para desligar numa TV, use `?cinema=0` no endereço do painel.
 
 O script guarda a programação por 3 horas. Para conferir, execute `testeCinema` no editor do Apps Script. Se o site estiver fora do ar, a tela de filmes não aparece e o resto do painel continua normal.
+
+## 11. Manutenção do carro (opcional)
+
+A página `carro.html` é uma tela à parte para acompanhar as revisões do carro: fundo preto, cards para o que precisa de atenção, barras de saúde (verde, amarelo, vermelho) para cada item e um carro 3D girando devagar. O carro é um modelo estilizado feito em código (`carro3d.js`), sem arquivo 3D externo. Abra `carro.html` no navegador para ver com dados de exemplo.
+
+Os dados ficam em duas abas da mesma planilha do cardápio:
+
+| Aba | Colunas |
+|---|---|
+| Carro | Campo · Valor. Campos: Nome, Versão, Data da compra, Km atual, Data do km, Km por mês (opcional), Cor (opcional, ex.: `#eef1f4`) |
+| Manutenção | Item · Grupo · Data da última troca · Km na última troca · Trocar a cada (km) · Trocar a cada (meses) · Situação · Observação |
+
+A saúde de um item é quanto ainda resta do intervalo de troca, em km ou em meses (o que acabar primeiro). O km de hoje é estimado pela média de uso, a partir da leitura mais recente (a da aba Carro ou a da última troca registrada). Itens sem data nem km contam desde a compra. Em **Situação**, `trocar` deixa o item vermelho (por exemplo, um desgaste apontado pela oficina) e `sem registro` deixa o item cinza até você informar a data. A **Observação** aparece em amarelo no card.
+
+Para mostrar na TV, use o endereço `.../carro.html?api=URL_DO_SCRIPT&token=SEU_TOKEN`. No app Android TV, troque o endereço da página nos ajustes para `.../carro.html` (o script e o token continuam os mesmos). Use `?giro=0` para deixar o carro parado e `?3d=0` para tirar o carro 3D. No Chromecast antigo, o 3D fica desligado para poupar memória. Para conferir os dados, execute `testeCarro` no editor do Apps Script.
 
 ## Fotos e vídeos do álbum
 

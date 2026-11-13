@@ -9,7 +9,8 @@
 const TOKEN = 'troque-este-segredo';
 
 // ID da planilha "Painel da Família" (o trecho entre /d/ e /edit na URL).
-// Só a aba "Cardápio" é usada (colunas Dia | Almoço | Jantar). Vazio = sem cardápio.
+// Abas usadas: "Cardápio" (colunas Dia | Almoço | Jantar) e, na tela do carro (carro.html),
+// "Carro" e "Manutenção" (veja getCar_ mais abaixo). Vazio = sem cardápio e sem tela do carro.
 const SHEET_ID = '';
 
 // Um perfil por painel. Use ?pessoa=<chave> na URL do painel.
@@ -84,6 +85,7 @@ function doGet(e) {
 
   if (p.spotify === 'login') return spotifyLoginPage_();
   if (p.spotify === 'now') return json_({ spotify: spotifyNowPlaying_() });
+  if (p.carro) return getCar_();
 
   if (p.foto) {
     // só entrega fotos das pastas configuradas, nunca outros arquivos do Drive
@@ -744,6 +746,48 @@ function decodeHtml_(s) {
 function newsSourceName_(site) {
   const host = String(site).replace(/^https?:\/\//i, '').replace(/\/.*$/, '').replace(/^www\./i, '');
   return host.split('.')[0];
+}
+
+// ---------------- Manutenção do carro (tela carro.html) ----------------
+// Aba "Carro": duas colunas, Campo | Valor. Campos lidos (todos opcionais):
+//   Nome, Versão, Data da compra, Km atual, Data do km, Km por mês, Cor (ex.: #eef1f4)
+//   Sem "Km por mês", a média é calculada pela data da compra e pelo km mais recente.
+// Aba "Manutenção": uma linha por item, colunas
+//   Item | Grupo | Data da última troca | Km na última troca | Trocar a cada (km) | Trocar a cada (meses) | Situação | Observação
+//   Situação (opcional): "trocar" deixa o item vermelho (ex.: desgaste apontado pela oficina);
+//   "sem registro" deixa cinza, pedindo a data. Sem data nem km, o item conta desde a compra.
+//   Observação aparece em amarelo no card (ex.: "Recomendado na revisão").
+function getCar_() {
+  if (!SHEET_ID) return json_({ error: 'defina SHEET_ID no script' });
+  const cache = CacheService.getScriptCache();
+  const cached = cache.get('carro');
+  if (cached) return ContentService.createTextOutput(cached).setMimeType(ContentService.MimeType.JSON);
+  const sheet = SpreadsheetApp.openById(SHEET_ID);
+  const day = v => v instanceof Date ? Utilities.formatDate(v, Session.getScriptTimeZone(), 'yyyy-MM-dd') : String(v || '').trim();
+  const val = v => v instanceof Date ? day(v) : (typeof v === 'number' ? v : String(v || '').trim());
+  const norm = s => String(s || '').trim().toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+  const campos = {};
+  const tab = sheet.getSheetByName('Carro');
+  if (tab && tab.getLastRow() >= 1) {
+    tab.getRange(1, 1, tab.getLastRow(), 2).getValues().forEach(r => { if (r[0] !== '') campos[norm(r[0])] = val(r[1]); });
+  }
+  const carro = {
+    nome: campos['nome'] || '', versao: campos['versao'] || '', compra: campos['data da compra'] || '',
+    km: campos['km atual'] || '', kmData: campos['data do km'] || '', kmMes: campos['km por mes'] || '', cor: campos['cor'] || '',
+  };
+  const itens = rows_(sheet, 'Manutenção').filter(r => String(r[0] || '').trim()).map(r => ({
+    nome: String(r[0]).trim(), grupo: String(r[1] || '').trim(), data: day(r[2]), km: val(r[3]),
+    intervaloKm: val(r[4]), intervaloMeses: val(r[5]), situacao: String(r[6] || '').trim(), obs: String(r[7] || '').trim(),
+  }));
+  const body = JSON.stringify({ carro: carro, itens: itens, updated: new Date().toISOString() });
+  try { cache.put('carro', body, 600); } catch (err) { /* grande demais para o cache */ }
+  return ContentService.createTextOutput(body).setMimeType(ContentService.MimeType.JSON);
+}
+
+/** Rode no editor para conferir o que a tela do carro vai mostrar. */
+function testeCarro() {
+  CacheService.getScriptCache().remove('carro');
+  Logger.log(getCar_().getContent());
 }
 
 // ---------------- utilitários ----------------

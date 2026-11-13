@@ -1,0 +1,246 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Manutenção do carro</title>
+<!--
+  Tela de manutenção do carro — para TV (Android TV, navegador).
+
+  Parâmetros de URL (todos opcionais):
+    api    URL do Web App do Google Apps Script (termina em /exec)
+    token  segredo configurado no script (TOKEN)
+    giro   velocidade do giro do carro 3D, em voltas por minuto (padrão 1; 0 deixa parado)
+    3d     0 desliga o carro 3D (no Chromecast ele já fica desligado, para poupar memória)
+  Sem "api", a tela mostra dados de exemplo.
+
+  Os dados vêm das abas "Carro" e "Manutenção" da planilha (veja apps-script/Code.gs).
+  A saúde de cada item é a parte que ainda resta do intervalo de troca, em km ou em meses
+  (o que acabar primeiro). Itens sem data de troca contam desde a compra do carro.
+-->
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@500;600;700&family=Inter:wght@400;500;600&display=swap">
+<script type="importmap">
+{ "imports": {
+  "three": "https://cdn.jsdelivr.net/npm/three@0.170.0/build/three.module.min.js",
+  "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.170.0/examples/jsm/"
+} }
+</script>
+<style>
+  :root { --verde: #22c55e; --amarelo: #facc15; --vermelho: #ef4444; --cinza: #6b7280; --muted: #8b93a1; --trilho: #1b1f26; }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { width: 100%; height: 100%; background: #000; color: #e5e7eb; overflow: hidden; }
+  body { font-family: Inter, Roboto, "Segoe UI", system-ui, sans-serif; }
+  .disp { font-family: Rajdhani, "Arial Narrow", sans-serif; letter-spacing: .04em; }
+  .muted { color: var(--muted); }
+  #car { position: absolute; left: 47vw; top: 0; width: 53vw; height: 74vh; }
+  #car canvas { display: block; }
+
+  .hdr { position: absolute; left: 2.6vw; top: 2.2vw; }
+  .hdr h1 { font-size: 2.6vw; font-weight: 700; line-height: 1; text-transform: uppercase; }
+  .hdr div { font-size: .95vw; margin-top: .3vw; }
+  #lista { position: absolute; left: 2.6vw; top: 7.2vw; width: 43vw; }
+  .tit { font-size: .85vw; letter-spacing: .2em; text-transform: uppercase; margin: 0 0 .7vw; display: flex; align-items: center; gap: .6vw; }
+  .tit:after { content: ""; flex: 1; height: 1px; background: #222831; }
+  .cards { display: grid; grid-template-columns: 1fr 1fr; gap: .8vw; }
+  .card { background: linear-gradient(180deg, #120c0c, #0a0a0b); border: 1px solid #2a1414; border-left: .3vw solid var(--vermelho); border-radius: .6vw; padding: .8vw 1vw; }
+  .card.amarelo { border-color: #2a2410; border-left-color: var(--amarelo); background: linear-gradient(180deg, #121008, #0a0a0b); }
+  .card .nm { font-size: 1.05vw; font-weight: 600; }
+  .card .sub { font-size: .75vw; margin: .25vw 0 .55vw; }
+  .card .st { font-family: Rajdhani, sans-serif; font-weight: 700; font-size: 1vw; letter-spacing: .08em; text-transform: uppercase; float: right; margin-left: .6vw; }
+  .nota { color: #fbbf24; }
+  .seg { display: flex; gap: .18vw; height: .55vw; }
+  .seg i { flex: 1; height: 100%; border-radius: 2px; background: var(--trilho); }
+  #ok { margin-top: 1.6vw; }
+  .mini { display: grid; grid-template-columns: 1fr 1fr; gap: .55vw 1.6vw; }
+  .m .l { display: flex; justify-content: space-between; gap: .6vw; font-size: .85vw; margin-bottom: .25vw; }
+  .m .l b { font-family: Rajdhani, sans-serif; font-weight: 700; white-space: nowrap; }
+  .m .seg { height: .42vw; gap: .12vw; }
+  .mais { font-size: .8vw; margin-top: .6vw; }
+  #medidores { position: absolute; right: 3vw; bottom: 2vw; width: 46vw; display: flex; justify-content: space-around; align-items: flex-end; }
+  .g { text-align: center; }
+  .g svg { width: 9vw; height: 9vw; }
+  .g .lb { font-size: .78vw; letter-spacing: .14em; text-transform: uppercase; margin-top: -.6vw; }
+  #aviso { position: absolute; left: 2.6vw; bottom: .8vw; font-size: .7vw; color: #6b7280; }
+</style>
+</head>
+<body>
+<div id="car"></div>
+<div class="hdr"><h1 class="disp" id="titulo">Manutenção</h1><div class="muted" id="subtitulo"></div></div>
+<div id="lista"></div>
+<div id="medidores"></div>
+<div id="aviso"></div>
+
+<script type="module">
+const params = new URLSearchParams(location.search);
+const API = params.get("api") || "", TOKEN = params.get("token") || "";
+const IS_CAST = /CrKey/.test(navigator.userAgent) || params.get("leve") === "1";
+const COR = { verde: "#22c55e", amarelo: "#facc15", vermelho: "#ef4444", cinza: "#6b7280" };
+const MES = ["jan", "fev", "mar", "abr", "mai", "jun", "jul", "ago", "set", "out", "nov", "dez"];
+const DIA = 864e5;
+const $ = id => document.getElementById(id);
+const esc = s => String(s == null ? "" : s).replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+const pad = n => String(n).padStart(2, "0");
+const num = v => { const n = typeof v === "number" ? v : parseFloat(String(v || "").replace(/\./g, "").replace(",", ".")); return isFinite(n) ? n : null; };
+function data(s) {
+  if (!s) return null;
+  let m = String(s).match(/^(\d{4})-(\d{2})-(\d{2})/); if (m) return new Date(+m[1], m[2] - 1, +m[3]);
+  m = String(s).match(/^(\d{1,2})\/(\d{1,2})\/(\d{2,4})/); if (m) return new Date(m[3].length === 2 ? 2000 + +m[3] : +m[3], m[2] - 1, +m[1]);
+  return null;
+}
+const fmtData = d => pad(d.getDate()) + "/" + pad(d.getMonth() + 1) + "/" + d.getFullYear();
+const fmtMes = d => MES[d.getMonth()] + "/" + String(d.getFullYear()).slice(2);
+const fmtKm = n => Math.round(n).toLocaleString("pt-BR") + " km";
+const addMeses = (d, n) => { const x = new Date(d); x.setMonth(x.getMonth() + n); return x; };
+const meses = (a, b) => (b - a) / (30.44 * DIA);
+
+// ---------- dados de exemplo (sem "api") ----------
+function exemplo() {
+  const hoje = new Date(), ha = d => { const x = new Date(hoje - d * DIA); return x.getFullYear() + "-" + pad(x.getMonth() + 1) + "-" + pad(x.getDate()); };
+  return {
+    carro: { nome: "Meu carro", versao: "Exemplo · configure a aba Carro da planilha", compra: ha(1300), km: 52000, kmData: ha(10) },
+    itens: [
+      { nome: "Óleo do motor e filtro", grupo: "Motor", data: ha(40), km: 50600, intervaloKm: 10000, intervaloMeses: 12 },
+      { nome: "Velas de ignição", grupo: "Motor", intervaloKm: 60000, intervaloMeses: 72, obs: "Recomendado na última revisão" },
+      { nome: "Filtro de ar do motor", grupo: "Motor", data: ha(10), km: 52000, intervaloKm: 30000, intervaloMeses: 24 },
+      { nome: "Filtro de combustível", grupo: "Motor", data: ha(10), km: 52000, intervaloKm: 30000, intervaloMeses: 24 },
+      { nome: "Correia dentada", grupo: "Motor", intervaloKm: 120000, intervaloMeses: 96 },
+      { nome: "Líquido de arrefecimento", grupo: "Motor", intervaloMeses: 60 },
+      { nome: "Pastilhas de freio dianteiras", grupo: "Freios", data: ha(200), km: 44000, intervaloKm: 30000, intervaloMeses: 36 },
+      { nome: "Fluido de freio", grupo: "Freios", intervaloMeses: 24 },
+      { nome: "Buchas da suspensão", grupo: "Suspensão", situacao: "trocar", obs: "Desgaste apontado na última revisão" },
+      { nome: "Alinhamento e balanceamento", grupo: "Pneus", data: ha(300), km: 42000, intervaloKm: 10000, intervaloMeses: 12 },
+      { nome: "Pneus", grupo: "Pneus", situacao: "sem registro", intervaloKm: 50000, intervaloMeses: 60 },
+      { nome: "Filtro do ar-condicionado", grupo: "Conforto", data: ha(10), km: 52000, intervaloKm: 10000, intervaloMeses: 12 },
+      { nome: "Bateria", grupo: "Elétrica", data: ha(500), intervaloMeses: 48 },
+    ],
+  };
+}
+
+// ---------- cálculo da saúde ----------
+function calcular(d) {
+  const hoje = new Date(); hoje.setHours(0, 0, 0, 0);
+  const c = d.carro || {};
+  const compra = data(c.compra);
+  // leitura de km mais recente: a do cadastro do carro ou a da última troca registrada
+  let leitura = { km: num(c.km), data: data(c.kmData) };
+  (d.itens || []).forEach(it => {
+    const k = num(it.km), dt = data(it.data);
+    if (k != null && dt && (!leitura.data || dt > leitura.data || leitura.km == null)) leitura = { km: k, data: dt };
+  });
+  let kmMes = num(c.kmMes);
+  if (!kmMes && compra && leitura.km && leitura.data && leitura.data > compra) kmMes = leitura.km / Math.max(1, meses(compra, leitura.data));
+  const kmHoje = leitura.km != null ? leitura.km + (kmMes || 0) * Math.max(0, meses(leitura.data || hoje, hoje)) : null;
+
+  const itens = (d.itens || []).filter(it => it && it.nome).map(it => {
+    const sit = String(it.situacao || "").trim().toLowerCase();
+    const iKm = num(it.intervaloKm), iMeses = num(it.intervaloMeses), obs = it.obs ? String(it.obs) : "";
+    const r = { nome: String(it.nome), grupo: it.grupo || "", obs };
+    if (sit.startsWith("troc")) return { ...r, pct: 5, status: "vermelho", rotulo: "trocar", texto: obs || "Precisa trocar", falta: "agora" };
+    let base = { data: data(it.data), km: num(it.km) };
+    let desdeCompra = false;
+    if (!base.data && base.km == null) { base = { data: compra, km: 0 }; desdeCompra = true; }
+    if (sit.startsWith("sem") || (!base.data && base.km == null) || (!iKm && !iMeses))
+      return { ...r, pct: null, status: "cinza", rotulo: "informar", texto: "Sem registro", falta: "informe a última troca" };
+    let usado = 0, restKm = null, prox = null;
+    if (iKm && base.km != null && kmHoje != null) { usado = Math.max(usado, (kmHoje - base.km) / iKm); restKm = base.km + iKm - kmHoje; }
+    if (iMeses && base.data) { prox = addMeses(base.data, iMeses); usado = Math.max(usado, (hoje - base.data) / (prox - base.data)); }
+    const pct = Math.max(0, Math.min(100, Math.round((1 - usado) * 100)));
+    const status = pct > 50 ? "verde" : pct > 20 ? "amarelo" : "vermelho";
+    const texto = desdeCompra ? "Sem troca desde a compra" + (compra ? " (" + pad(compra.getMonth() + 1) + "/" + compra.getFullYear() + ")" : "")
+      : base.data ? "Trocado em " + fmtData(base.data) : "Trocado com " + fmtKm(base.km);
+    const partes = [];
+    if (restKm != null) partes.push("em " + fmtKm(Math.max(0, Math.round(restKm / 100) * 100)));
+    if (prox) partes.push("até " + fmtMes(prox));
+    const falta = pct <= 0 ? "vencido" : partes.join(" ou ");
+    const rotulo = pct <= 0 ? "vencido" : status === "vermelho" ? "trocar" : status === "amarelo" ? "em breve" : (restKm != null ? fmtKm(Math.round(restKm / 100) * 100) : fmtMes(prox));
+    return { ...r, pct, status, rotulo, texto, falta, data: base.data && !desdeCompra ? base.data : null };
+  });
+  const ultimaOficina = itens.reduce((m, it) => it.data && (!m || it.data > m) ? it.data : m, null);
+  return { carro: c, kmHoje, itens, ultimaOficina, hoje };
+}
+
+// ---------- desenho ----------
+const seg = (it, k) => {
+  const on = it.pct == null ? 0 : Math.max(it.pct > 0 ? 1 : 0, Math.round(it.pct / 100 * k)), cor = COR[it.status];
+  return `<div class="seg">${Array.from({ length: k }, (_, i) => `<i${i < on ? ` style="background:${cor};box-shadow:0 0 .4vw ${cor}88"` : ""}></i>`).join("")}</div>`;
+};
+function medidor(frac, rotulo, cor, txt) {
+  const R = 42, C = 2 * Math.PI * R * 0.75, a = Math.max(0.02, Math.min(1, frac || 0));
+  return `<div class="g"><svg viewBox="0 0 100 100">
+    <circle cx="50" cy="50" r="${R}" fill="none" stroke="#1b1f26" stroke-width="7" stroke-dasharray="${C} 999" transform="rotate(135 50 50)" stroke-linecap="round"/>
+    <circle cx="50" cy="50" r="${R}" fill="none" stroke="${cor}" stroke-width="7" stroke-dasharray="${C * a} 999" transform="rotate(135 50 50)" stroke-linecap="round" style="filter:drop-shadow(0 0 3px ${cor})"/>
+    <text x="50" y="52" text-anchor="middle" fill="#fff" font-family="Rajdhani, sans-serif" font-weight="700" font-size="22">${esc(txt)}</text>
+  </svg><div class="lb muted">${esc(rotulo)}</div></div>`;
+}
+const ORDEM = { vermelho: 0, amarelo: 1, cinza: 2, verde: 3 };
+let car3d = null;
+
+function desenhar(d) {
+  const r = calcular(d), c = r.carro, its = r.itens;
+  const urg = [...its].sort((a, b) => ORDEM[a.status] - ORDEM[b.status] || (a.pct ?? 0) - (b.pct ?? 0));
+  const n = s => its.filter(i => i.status === s).length;
+  const alerta = urg.filter(i => i.status === "vermelho" || i.status === "amarelo");
+  const resto = urg.filter(i => i.status === "verde" || i.status === "cinza");
+  const MAX_CARDS = 8, MAX_MINI = 2 * Math.max(2, 9 - Math.ceil(Math.min(alerta.length, MAX_CARDS) / 2));
+
+  $("titulo").textContent = (c.nome || "Meu carro") + " · Revisões";
+  $("subtitulo").textContent = [c.versao, r.ultimaOficina ? "última visita à oficina em " + fmtData(r.ultimaOficina) : ""].filter(Boolean).join(" · ");
+  const card = it => `<div class="card ${it.status}"><span class="st" style="color:${COR[it.status]}">${esc(it.rotulo)}</span>
+    <div class="nm">${esc(it.nome)}</div>
+    <div class="sub muted">${it.obs ? `<span class="nota">${esc(it.obs)}</span>` : esc(it.texto + " · " + it.falta)}</div>${seg(it, 20)}</div>`;
+  const mini = it => `<div class="m"><div class="l"><span>${esc(it.nome)}</span><b style="color:${COR[it.status]}">${esc(it.rotulo)}</b></div>${seg(it, 30)}</div>`;
+  $("lista").innerHTML =
+    (alerta.length ? `<div class="tit muted">Precisa de atenção · ${alerta.length}</div><div class="cards">${alerta.slice(0, MAX_CARDS).map(card).join("")}</div>`
+      + (alerta.length > MAX_CARDS ? `<div class="mais muted">e mais ${alerta.length - MAX_CARDS}: ${esc(alerta.slice(MAX_CARDS).map(i => i.nome).join(", "))}</div>` : "")
+      : `<div class="tit muted">Tudo em dia</div>`)
+    + (resto.length ? `<div id="ok"><div class="tit muted">${n("cinza") ? "Em dia e sem registro" : "Em dia"}</div><div class="mini">${resto.slice(0, MAX_MINI).map(mini).join("")}</div>`
+      + (resto.length > MAX_MINI ? `<div class="mais muted">e mais ${resto.length - MAX_MINI} em dia</div>` : "") + `</div>` : "");
+
+  const dias = r.ultimaOficina ? Math.round((r.hoje - r.ultimaOficina) / DIA) : null;
+  $("medidores").innerHTML =
+    (r.kmHoje != null ? medidor((r.kmHoje % 100000) / 100000, "km rodados", "#22d3ee", (r.kmHoje / 1000).toFixed(1).replace(".", ",") + "k") : "")
+    + medidor(n("verde") / Math.max(1, its.length), "em dia", COR.verde, n("verde") + "/" + its.length)
+    + medidor(n("vermelho") / Math.max(1, its.length), "para trocar", COR.vermelho, String(n("vermelho")))
+    + (dias != null ? medidor(Math.min(1, dias / 365), dias === 1 ? "dia desde a oficina" : "dias desde a oficina", "#a78bfa", String(dias)) : "");
+  $("aviso").textContent = (d.warnings && d.warnings.length ? "Aviso: " + d.warnings.join(" · ") + " · " : "")
+    + (r.kmHoje != null ? "km estimado pela média de uso" : "");
+
+  const destaque = n("vermelho") ? COR.vermelho : n("amarelo") ? COR.amarelo : COR.verde;
+  if (car3d) { car3d.setAccent(destaque); if (c.cor) car3d.setPaint(c.cor); }
+  return destaque;
+}
+
+// ---------- carro 3D ----------
+async function iniciar3d(destaque, cor) {
+  if (IS_CAST || params.get("3d") === "0") return;
+  try {
+    const { mountCar } = await import("./carro3d.js");
+    const rpm = params.has("giro") ? parseFloat(params.get("giro")) || 0 : 1;
+    car3d = mountCar($("car"), { spin: rpm * Math.PI * 2 / 60, angle: -0.15, camera: [7.2, 2.0, 7.2], lookY: 0.75, accent: destaque, paint: cor || "#eef1f4" });
+  } catch (e) { console.log("carro 3D indisponível:", e); }
+}
+
+// ---------- dados ----------
+async function carregar() {
+  if (!API) return exemplo();
+  const u = API + (API.includes("?") ? "&" : "?") + "carro=1&token=" + encodeURIComponent(TOKEN) + "&t=" + Date.now();
+  const res = await fetch(u);
+  const j = await res.json();
+  if (j.error) throw new Error(j.error);
+  return j;
+}
+let ultimo = null;
+async function atualizar() {
+  try { ultimo = await carregar(); }
+  catch (e) { if (!ultimo) ultimo = { carro: {}, itens: [] }; ultimo.warnings = ["não foi possível ler a planilha (" + e.message + ")"]; }
+  return desenhar(ultimo);
+}
+const destaque = await atualizar();
+await iniciar3d(destaque, ultimo && ultimo.carro && ultimo.carro.cor);
+window.ok = 1;
+setInterval(atualizar, 30 * 60 * 1000);          // relê a planilha a cada 30 min
+setTimeout(() => location.reload(), 6 * 3600 * 1000); // recarrega a página a cada 6 h para liberar memória
+setInterval(() => ultimo && desenhar(ultimo), 3600 * 1000); // a estimativa de km e as datas andam sozinhas
+</script>
+</body>
+</html>
