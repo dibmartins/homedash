@@ -22,6 +22,7 @@
             Liga sozinho (estrelas) só no app da TV; no navegador, só se for pedido aqui; no Chromecast, nunca.
     cinema  0 desliga os filmes em cartaz (que aparecem no lugar de uma foto, a cada 3)
     carro   0 desliga a tela de manutenção do carro (que aparece no lugar de uma foto, de tempos em tempos)
+    corridas 0 desliga a tela de corridas de rua (que aparece no lugar de uma foto, de tempos em tempos)
     carro3d 0 tira o carro 3D dessa tela (no Chromecast ele já fica desligado, para poupar memória)
   Sem "api", o painel mostra dados de exemplo.
 -->
@@ -255,6 +256,65 @@
   .lite #cine .pst, .lite .cb .cell .pst .rt { box-shadow: none; }
   .lite #bg, .lite #verse { transition: none; }
 
+  /* ---------- corridas de rua, no lugar da foto ---------- */
+  #corr { position: fixed; left: 45vw; right: 0; top: 0; bottom: 0; z-index: 1; overflow: hidden; color: #eef0f4;
+    background: radial-gradient(ellipse at 70% -25%, #3a1c06, #11151c 62%);
+    -webkit-mask-image: linear-gradient(90deg, transparent 0, #000 9%); mask-image: linear-gradient(90deg, transparent 0, #000 9%);
+    opacity: 0; transition: opacity 1.5s ease; text-shadow: none; padding: 4vh 2.6vw 3vh 5vw; display: flex; flex-direction: column; }
+  #corr.show { opacity: 1; }
+  body.has-news #corr { bottom: 6vh; }
+  .lite body.has-news #corr { bottom: 8.8vh; }
+  body.corr #verse, body.corr #bg { opacity: 0; }
+  .lite #corr { -webkit-mask-image: none; mask-image: none; transition: none; }
+  #corr .bb { font-family: "Bebas Neue", Impact, "Arial Narrow", sans-serif; font-weight: 400; letter-spacing: 0.02em; }
+  #corr .chead { display: flex; align-items: baseline; gap: 1.2vw; flex: none; }
+  #corr .brand { color: #ff7a1a; font-size: 3.2vw; line-height: 0.9; white-space: nowrap; }
+  #corr .cname { font-size: 1.4vw; color: #d9dce3; flex: 1 1 auto; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  #corr .pg2 { font-size: 1vw; color: #9ca1ad; letter-spacing: 0.1em; white-space: nowrap; }
+  #corr .tit { font-size: 0.85vw; letter-spacing: 0.2em; text-transform: uppercase; color: #9aa1ad; margin: 2.6vh 0 1.2vh; display: flex; align-items: center; gap: 0.6vw; flex: none; }
+  #corr .tit:after { content: ""; flex: 1; height: 1px; background: rgba(255,255,255,0.1); }
+  #corr .km { display: inline-block; padding: 0.12em 0.42em; border-radius: 0.3em; background: rgba(255,122,26,0.16); color: #ffb37a;
+    font-weight: 700; font-variant-numeric: tabular-nums; white-space: nowrap; line-height: 1.25; }
+  #corr .kms { display: flex; gap: 0.3vw; flex-wrap: nowrap; overflow: hidden; }
+  #corr .mu { color: #9aa1ad; }
+  /* em destaque: as próximas nas cidades de "perto" */
+  #corr .perto { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1vw; flex: none; }
+  #corr .pc { display: flex; gap: 0.9vw; min-width: 0; padding: 1vw; border-radius: 0.6vw;
+    background: linear-gradient(160deg, rgba(255,122,26,0.22), rgba(255,122,26,0.05)); border: 1px solid rgba(255,122,26,0.35); }
+  #corr .dt { flex: none; width: 4.6vw; text-align: center; border-radius: 0.45vw; background: #ff7a1a; color: #1a0d02; padding: 0.5vh 0 0.7vh; align-self: flex-start; }
+  #corr .dt .w { font-size: 0.75vw; font-weight: 800; letter-spacing: 0.12em; text-transform: uppercase; }
+  #corr .dt .n { font-size: 2.9vw; line-height: 0.9; }
+  #corr .dt .m { font-size: 0.75vw; font-weight: 800; letter-spacing: 0.12em; text-transform: uppercase; }
+  #corr .pc .tx { min-width: 0; display: flex; flex-direction: column; gap: 0.6vh; }
+  #corr .pc .nm { font-size: 1.12vw; font-weight: 700; line-height: 1.2; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+  #corr .pc .ct { font-size: 0.92vw; }
+  #corr .pc .kms { font-size: 0.85vw; }
+  #corr .pc .em { font-size: 0.8vw; color: #ffb37a; font-weight: 600; }
+  /* lista do estado: por dia, em duas colunas */
+  #corr .lista { flex: 1 1 0; min-height: 0; -webkit-column-count: 2; column-count: 2; -webkit-column-gap: 2vw; column-gap: 2vw; -webkit-column-fill: auto; column-fill: auto; overflow: hidden; }
+  #corr .dia { font-size: 1.25vw; color: #ff9a4d; margin: 0 0 0.6vh; padding-top: 0.4vh; break-after: avoid; -webkit-column-break-after: avoid; }
+  #corr .dia .mu { font-family: "Google Sans", Roboto, sans-serif; font-size: 0.75vw; letter-spacing: 0.06em; margin-left: 0.5vw; }
+  #corr .r { display: flex; align-items: baseline; gap: 0.6vw; font-size: 0.95vw; line-height: 1.3; padding: 0.45vh 0; border-bottom: 1px solid rgba(255,255,255,0.06);
+    break-inside: avoid; -webkit-column-break-inside: avoid; }
+  #corr .r .nm { flex: 1 1 auto; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  #corr .r .ct { flex: none; max-width: 36%; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-size: 0.85vw; }
+  #corr .r .kms { flex: none; font-size: 0.78vw; }
+  #corr .r.near .nm { color: #ffb37a; }
+  #corr .gap { height: 1.6vh; }
+  /* opção A: colunas por dia */
+  #corr .cols { flex: 1 1 0; min-height: 0; display: grid; gap: 1vw; margin-top: 2.6vh; }
+  #corr .col { min-width: 0; min-height: 0; display: flex; flex-direction: column; gap: 0.7vh; overflow: hidden; }
+  #corr .col .hd { display: flex; align-items: baseline; gap: 0.5vw; border-bottom: 2px solid #ff7a1a; padding-bottom: 0.6vh; margin-bottom: 0.4vh; }
+  #corr .col .hd .n { font-size: 2.6vw; line-height: 0.9; }
+  #corr .col .hd .w { font-size: 0.85vw; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; color: #ff9a4d; }
+  #corr .col .hd .q { margin-left: auto; font-size: 0.8vw; }
+  #corr .cc { padding: 0.6vw 0.7vw; border-radius: 0.45vw; background: rgba(255,255,255,0.05); flex: none; }
+  #corr .cc.near { background: linear-gradient(160deg, rgba(255,122,26,0.28), rgba(255,122,26,0.08)); border: 1px solid rgba(255,122,26,0.4); }
+  #corr .cc .nm { font-size: 0.95vw; font-weight: 600; line-height: 1.2; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+  #corr .cc .ln { display: flex; align-items: baseline; gap: 0.5vw; margin-top: 0.4vh; font-size: 0.78vw; }
+  #corr .cc .ln .ct { flex: 1 1 auto; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  #corr .col .mais { font-size: 0.85vw; padding: 0.4vh 0.2vw; }
+
   /* ---------- manutenção do carro, no lugar da foto ---------- */
   #carro { position: fixed; left: 45vw; right: 0; top: 0; bottom: 0; z-index: 1; overflow: hidden; color: #e5e7eb;
     background: radial-gradient(ellipse at 60% -20%, #2a0a0d, #11151c 65%); /* o mesmo fundo do cinema */
@@ -338,6 +398,7 @@
 
   <div id="cine" class="hidden"></div>
   <div id="carro" class="hidden"></div>
+  <div id="corr" class="hidden"></div>
   <div id="verse" class="hidden"><div class="vt"></div><div class="vr"></div></div>
   <div id="status"></div>
   <div id="news" class="hidden"><div class="tag">Notícias</div><div class="lane"><div id="news-track"></div></div></div>
@@ -801,8 +862,10 @@
     // de vez em quando, os filmes em cartaz entram no lugar de uma foto
     if (cineOn) hideCine();
     else if (carOn) hideCar();
+    else if (corrOn) hideCorr();
     else if (cineReady() && ++cineCount >= CINE_EVERY) { cineCount = 0; showCine(); scheduleNext(CINE_MS); return; }
     else if (carReady() && ++carCount >= CAR_EVERY) { carCount = 0; showCar(); scheduleNext(CAR_MS); return; }
+    else if (corrReady() && ++corrCount >= CORR_EVERY) { corrCount = 0; showCorr(); scheduleNext(CORR_MS); return; }
     showPhoto(1);
   }
   function showPhoto(step) {
@@ -813,7 +876,7 @@
     prefetchNext();
   }
   // Botões de canal do controle (CH+ / CH−, no app da TV) ou Page Up / Page Down no computador:
-  // pula para a tela seguinte/anterior na ordem fotos → cinema → carro (só as que têm dados).
+  // pula para a tela seguinte/anterior na ordem fotos → cinema → carro → corridas (só as que têm dados).
   // Se só houver fotos, passa para a foto seguinte/anterior. Depois a rotação segue normalmente.
   var lastSkip = 0;
   function skipScreen(step) {
@@ -823,13 +886,16 @@
     var list = ["fotos"];
     if (cineReady()) list.push("cine");
     if (carReady()) list.push("carro");
-    var cur = cineOn ? "cine" : carOn ? "carro" : "fotos";
+    if (corrReady()) list.push("corr");
+    var cur = cineOn ? "cine" : carOn ? "carro" : corrOn ? "corr" : "fotos";
     var i = Math.max(0, list.indexOf(cur));
     var to = list[(i + step + list.length) % list.length];
     if (cineOn) hideCine();
     if (carOn) hideCar();
+    if (corrOn) hideCorr();
     if (to === "cine") { cineCount = 0; showCine(); scheduleNext(CINE_MS); }
     else if (to === "carro") { carCount = 0; showCar(); scheduleNext(CAR_MS); }
+    else if (to === "corr") { corrCount = 0; showCorr(); scheduleNext(CORR_MS); }
     else if (photos.length) showPhoto(cur === "fotos" ? step : 1);
   }
   window.__skipScreen = skipScreen;
@@ -1193,6 +1259,108 @@
     cineHideTimer = setTimeout(function () { el.classList.add("hidden"); el.innerHTML = ""; }, 1600);
   }
 
+  // ---------- corridas de rua ----------
+  // De tempos em tempos, a tela da direita mostra as próximas corridas de rua do estado no lugar da foto.
+  // Em cima, em destaque, as próximas nas cidades de "perto" (configuradas no script); embaixo, as
+  // dos próximos dias no estado, por data. Se não couberem, cada vez que a tela aparece mostra a página seguinte.
+  var CORR_PARAM = (params.get("corridas") || "").toLowerCase();
+  var CORR_LAYOUT = (params.get("corridasLayout") || "b").toLowerCase();
+  var CORR_EVERY = 5, CORR_MS = 40 * 1000, CORR_DAYS = 10, CORR_PERTO_DAYS = 60;
+  var corrCount = 0, corrTurn = 0, corrOn = false, corrHideTimer = null;
+  var SEMANA = ["dom", "seg", "ter", "qua", "qui", "sex", "sáb"];
+  function corrDate(s) { var p = String(s).split("-"); return new Date(+p[0], +p[1] - 1, +p[2]); }
+  function corrNorm(s) { return String(s || "").toLowerCase().normalize ? String(s || "").toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "").trim() : String(s || "").toLowerCase().trim(); }
+  function corrList(c) {
+    var hoje = startOfDay(new Date()), perto = {};
+    (c.perto || []).forEach(function (x) { perto[corrNorm(x)] = true; });
+    return (c.races || []).map(function (r) {
+      var d = corrDate(r.d);
+      return { r: r, d: d, dias: Math.round((d - hoje) / DIA_MS), near: !!perto[corrNorm(r.city)] };
+    }).filter(function (x) { return x.dias >= 0; });
+  }
+  function corrReady() {
+    var c = lastData && lastData.corridas;
+    return CORR_PARAM !== "0" && !!(c && c.races && c.races.length) &&
+      corrList(c).some(function (x) { return x.dias < CORR_DAYS || (x.near && x.dias < CORR_PERTO_DAYS); });
+  }
+  function corrKm(r, max) { return (r.km || []).length ? '<span class="kms">' + r.km.slice(0, max || 4).map(function (k) { return '<span class="km">' + esc(k) + "k</span>"; }).join("") + "</span>" : ""; }
+  function corrEm(n) { return n === 0 ? "hoje" : n === 1 ? "amanhã" : "daqui a " + n + " dias"; }
+  function corrHead(c, extra) {
+    return '<div class="chead"><span class="brand bb">Corridas de rua</span><span class="cname">Próximas no ' + esc(c.uf || "estado") + "</span>" + (extra || "") + "</div>";
+  }
+  // B: destaque de perto + lista do estado em duas colunas, por dia
+  function corrHtmlB(c, all) {
+    var near = all.filter(function (x) { return x.near && x.dias < CORR_PERTO_DAYS; }).slice(0, 3);
+    var used = {}; near.forEach(function (x) { used[x.r.id] = true; });
+    var rest = all.filter(function (x) { return x.dias < CORR_DAYS && !used[x.r.id]; });
+    // perto primeiro dentro de cada dia
+    rest.sort(function (a, b) { return a.d - b.d || (b.near - a.near); });
+    var per = near.length ? 24 : 36, pages = Math.max(1, Math.ceil(rest.length / per)), pg = corrTurn % pages;
+    var items = rest.slice(pg * per, pg * per + per);
+    var h = corrHead(c, pages > 1 ? '<span class="pg2">' + (pg + 1) + "/" + pages + "</span>" : "");
+    if (near.length) {
+      h += '<div class="tit">Perto de casa</div><div class="perto">' + near.map(function (x) {
+        return '<div class="pc"><div class="dt"><div class="w">' + SEMANA[x.d.getDay()] + '</div><div class="n bb">' + x.d.getDate() +
+          '</div><div class="m">' + MESES[x.d.getMonth()] + '</div></div><div class="tx"><div class="nm">' + esc(x.r.name) +
+          '</div><div class="ct mu">' + esc(x.r.city) + "</div>" + corrKm(x.r) + '<div class="em">' + corrEm(x.dias) + "</div></div></div>";
+      }).join("") + "</div>";
+    }
+    h += '<div class="tit">No estado · próximos dias</div><div class="lista">';
+    var last = "";
+    items.forEach(function (x) {
+      if (x.r.d !== last) {
+        last = x.r.d;
+        var n = rest.filter(function (y) { return y.r.d === x.r.d; }).length;
+        h += '<div class="dia bb">' + SEMANA[x.d.getDay()] + " " + x.d.getDate() + " " + MESES[x.d.getMonth()] +
+          '<span class="mu">' + n + (n > 1 ? " corridas" : " corrida") + "</span></div>";
+      }
+      h += '<div class="r' + (x.near ? " near" : "") + '">' + corrKm(x.r) + '<span class="nm">' + esc(x.r.name) + '</span><span class="ct mu">' + esc(x.r.city) + "</span></div>";
+    });
+    return h + "</div>";
+  }
+  // A: uma coluna por dia com corrida (até 4 dias), perto no topo de cada coluna
+  function corrHtmlA(c, all) {
+    var days = [];
+    all.forEach(function (x) { if (x.dias < CORR_DAYS && days.indexOf(x.r.d) < 0) days.push(x.r.d); });
+    var per = 4, pages = Math.max(1, Math.ceil(days.length / per)), pg = corrTurn % pages;
+    var show = days.slice(pg * per, pg * per + per);
+    var h = corrHead(c, pages > 1 ? '<span class="pg2">' + (pg + 1) + "/" + pages + "</span>" : "");
+    h += '<div class="cols" style="grid-template-columns:repeat(' + Math.max(show.length, 3) + ',1fr)">';
+    show.forEach(function (d) {
+      var xs = all.filter(function (x) { return x.r.d === d; }).sort(function (a, b) { return b.near - a.near; });
+      var dt = xs[0].d, max = xs.length > 7 ? 6 : 7;
+      h += '<div class="col"><div class="hd"><span class="n bb">' + dt.getDate() + '</span><span class="w">' + SEMANA[dt.getDay()] + " · " + MESES[dt.getMonth()] +
+        '</span><span class="q mu">' + xs.length + "</span></div>" + xs.slice(0, max).map(function (x) {
+          return '<div class="cc' + (x.near ? " near" : "") + '"><div class="nm">' + esc(x.r.name) + '</div><div class="ln"><span class="ct mu">' + esc(x.r.city) + "</span>" + corrKm(x.r, 3) + "</div></div>";
+        }).join("") + (xs.length > max ? '<div class="mais mu">+ ' + (xs.length - max) + (xs.length - max > 1 ? " corridas" : " corrida") + "</div>" : "") + "</div>";
+    });
+    return h + "</div>";
+  }
+  function showCorr() {
+    var c = lastData.corridas, all = corrList(c);
+    bgGen++; // cancela vídeo que ainda estava carregando
+    if (NATIVE && document.documentElement.classList.contains("nv")) {
+      NATIVE.stop();
+      document.documentElement.classList.remove("nv");
+      [].slice.call($("bg").querySelectorAll(".nv")).forEach(function (n) { n.remove(); });
+    }
+    clearTimeout(corrHideTimer);
+    var el = $("corr");
+    el.innerHTML = CORR_LAYOUT === "a" ? corrHtmlA(c, all) : corrHtmlB(c, all);
+    el.classList.remove("hidden");
+    corrOn = true;
+    corrTurn++;
+    document.body.classList.add("corr");
+    requestAnimationFrame(function () { requestAnimationFrame(function () { el.classList.add("show"); }); });
+  }
+  function hideCorr() {
+    var el = $("corr");
+    corrOn = false;
+    el.classList.remove("show");
+    document.body.classList.remove("corr");
+    corrHideTimer = setTimeout(function () { el.classList.add("hidden"); el.innerHTML = ""; }, 1600);
+  }
+
   // ---------- manutenção do carro ----------
   // De tempos em tempos, a tela da direita mostra a saúde dos itens de manutenção do carro no lugar da foto.
   // A saúde é quanto ainda resta do intervalo de troca, em km ou em meses (o que acabar primeiro).
@@ -1425,6 +1593,7 @@
     var t = startOfDay(new Date());
     function at(o, h, m) { var d = new Date(t); d.setDate(d.getDate() + o); d.setHours(h, m || 0); return d.toISOString(); }
     function day(o) { var d = new Date(t); d.setDate(d.getDate() + o); return d.toISOString(); }
+    function dayStr(o) { var d = new Date(t); d.setDate(d.getDate() + o); return d.getFullYear() + "-" + pad(d.getMonth() + 1) + "-" + pad(d.getDate()); }
     var C = { familia: "#4fb38b", pessoa1: "#7aa2f7", pessoa2: "#e8768a", pessoa3: "#f2b544" };
     var events = [
       { who: "pessoa3", title: "Natação", start: at(0, 8, 30), end: at(0, 9, 30) },
@@ -1501,6 +1670,16 @@
           { title: "Robôs do Espaço", genres: ["Ficção científica", "Ação"], runtime: 130, rating: "12",
             sessions: [{ at: at(0, 15), v: "DUB" }, { at: at(0, 20, 30), v: "LEG" }, { at: at(1, 15), v: "DUB" }] }
         ]
+      },
+      corridas: {
+        uf: "RJ", perto: ["Cidade Vizinha"],
+        races: [
+          [1, "Capital", "Corrida da Orla", ["10", "5"]], [1, "Serra", "Desafio da Serra", ["21", "12", "6"]], [1, "Litoral", "Corrida do Pôr do Sol", ["5"]],
+          [2, "Capital", "Circuito das Estações", ["10", "5"]], [2, "Cidade Vizinha", "Corrida da Padroeira", ["5"]], [2, "Interior", "Corrida Rústica", ["7"]],
+          [2, "Capital", "Corrida Kids", []], [2, "Litoral", "Volta da Lagoa", ["15", "5"]], [8, "Capital", "Night Run", ["7"]],
+          [9, "Cidade Vizinha", "Corrida das Flores", ["6"]], [9, "Serra", "Trail Run", ["25", "16", "8"]], [9, "Capital", "Meia da Cidade", ["21", "10", "5"]],
+          [23, "Cidade Vizinha", "Corrida de Natal", ["5"]]
+        ].map(function (r, i) { return { d: dayStr(r[0]), city: r[1], name: r[2], km: r[3], id: String(i) }; })
       },
       demo: true
     };
