@@ -74,6 +74,14 @@ const GOSPEL_API = 'https://liturgia.up.railway.app/v2/';
 // A tela de filmes aparece no lugar de uma foto de vez em quando. Para desligar num perfil, use cinema: false nele.
 const CINEMA = { code: '', name: '' };
 
+// Corridas de rua do estado, lidas do calendário do CorridasBR (corridasbr.com.br/<uf>/calendario.asp).
+// uf: a sigla do estado no endereço, ex.: 'rj'.  Vazio = sem corridas.
+// perto: cidades que aparecem em destaque, ex.: ['Niterói', 'Maricá'] (como estão escritas no site).
+// fotos: ID de uma pasta do Google Drive com fotos para ilustrar a tela (a pasta pode continuar privada).
+//        O ID é o trecho do endereço da pasta depois de /folders/.  Vazio = sem fotos.
+// A tela de corridas aparece no lugar de uma foto de vez em quando. Para desligar num perfil, use corridas: false nele.
+const CORRIDAS = { uf: 'rj', perto: [], fotos: '' };
+
 function doGet(e) {
   const p = (e && e.parameter) || {};
   if (TOKEN === 'troque-este-segredo' || TOKEN.length < 24) return json_({ error: 'defina um TOKEN longo no script' });
@@ -119,6 +127,7 @@ function doGet(e) {
     trash: profile.lixo || null,
     gospel: GOSPEL_API ? safe('evangelho', getGospel_, null) : null,
     cinema: CINEMA.code && profile.cinema !== false ? safe('cinema', getCinema_, null) : null,
+    corridas: CORRIDAS.uf && profile.corridas !== false ? safe('corridas', getCorridas_, null) : null,
     carro: sheet && profile.carro !== false ? safe('carro', () => getCar_(sheet), null) : null,
     warnings: warnings,
     updated: new Date().toISOString(),
@@ -270,6 +279,88 @@ function testeCinema() {
   Logger.log(c.movies.length + ' filmes');
   c.movies.forEach(m => Logger.log(m.title + ' | ' + m.genres.join(', ') + ' | ' + m.runtime + ' min | ' + (m.rating || '?') +
     ' | ' + m.sessions.map(s => s.at.slice(5, 16).replace('T', ' ') + ' ' + s.v + (s.f ? ' ' + s.f : '')).join(', ') + ' | ' + (m.poster ? 'com cartaz' : 'sem cartaz')));
+}
+
+// ---------------- Corridas de rua ----------------
+// Lê o calendário de próximas corridas do estado e guarda por 6 horas (o site muda pouco ao longo do dia).
+function getCorridas_() {
+  const key = corridasKey_();
+  const cache = CacheService.getScriptCache();
+  const hit = cache.get(key);
+  if (hit) return JSON.parse(hit);
+  const out = { uf: CORRIDAS.uf.toUpperCase(), perto: CORRIDAS.perto || [], races: corridasParse_(corridasFetch_()),
+    fotos: CORRIDAS.fotos ? getPhotos_({ folder: CORRIDAS.fotos }) : [] };
+  try { cache.put(key, JSON.stringify(out), out.races.length ? 6 * 3600 : 600); } catch (err) {}
+  return out;
+}
+
+function corridasKey_() {
+  return 'corridas-' + CORRIDAS.uf + '-' + Utilities.formatDate(new Date(), Session.getScriptTimeZone(), 'yyyyMMdd');
+}
+
+function corridasFetch_() {
+  const url = 'https://www.corridasbr.com.br/' + encodeURIComponent(CORRIDAS.uf.toLowerCase()) + '/calendario.asp';
+  const res = UrlFetchApp.fetch(url, { muteHttpExceptions: true, followRedirects: true, headers: { 'User-Agent': 'Mozilla/5.0 (painel)' } });
+  if (res.getResponseCode() !== 200) throw new Error('calendário HTTP ' + res.getResponseCode());
+  // o site é antigo (ASP) e costuma vir em ISO-8859-1; usa UTF-8 só se ele disser
+  const ctype = String((res.getHeaders() || {})['Content-Type'] || '');
+  const head = res.getBlob().getDataAsString('ISO-8859-1').slice(0, 3000);
+  const utf8 = /utf-?8/i.test(ctype) || /<meta[^>]+charset=["']?utf-?8/i.test(head);
+  return res.getBlob().getDataAsString(utf8 ? 'UTF-8' : 'ISO-8859-1');
+}
+
+// Cada linha da tabela tem: data (DD.MM), cidade, nome (link mostracorrida.asp?escolha=ID) e distâncias.
+// O ano não aparece: a data vale para este ano, ou para o próximo se já passou faz tempo.
+function corridasParse_(html) {
+  const tz = Session.getScriptTimeZone(), now = new Date();
+  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  const races = [], seen = {};
+  const clean = t => decodeHtml_(String(t).replace(/<[^>]+>/g, ' ')).replace(/\s+/g, ' ').trim();
+  html.split(/<tr[\s>]/i).forEach(row => {
+    const link = row.match(/mostracorrida\.asp\?escolha=(\d+)/i);
+    if (!link || seen[link[1]]) return;
+    const cells = (row.match(/<td[\s\S]*?(?=<td|<\/tr|$)/gi) || []).map(clean);
+    const di = cells.findIndex(x => /^\d{1,2}[.\/]\d{1,2}$/.test(x));
+    if (di < 0) return;
+    const dm = cells[di].split(/[.\/]/);
+    let d = new Date(now.getFullYear(), +dm[1] - 1, +dm[0]);
+    if (d.getTime() < today.getTime() - 60 * 86400000) d = new Date(now.getFullYear() + 1, +dm[1] - 1, +dm[0]);
+    if (d < today) return;
+    const a = row.match(/<a[^>]+mostracorrida\.asp\?escolha=\d+[^>]*>([\s\S]*?)<\/a>/i);
+    const c = row.match(/<a[^>]+por_cidade\.asp[^>]*>([\s\S]*?)<\/a>/i);
+    const rest = cells.slice(di + 1).filter(Boolean);
+    const name = (a && clean(a[1])) || rest[1] || '';
+    const city = (c && clean(c[1])) || rest[0] || '';
+    seen[link[1]] = true;
+    races.push({
+      d: Utilities.formatDate(d, tz, 'yyyy-MM-dd'),
+      name: name,
+      city: city,
+      km: corridasKm_(rest.filter(x => x !== name && x !== city).join(' ')),
+      id: link[1],
+    });
+  });
+  races.sort((a, b) => a.d < b.d ? -1 : a.d > b.d ? 1 : 0);
+  return races;
+}
+
+// "21/10/5km" -> ['21', '10', '5'];  "7,5km" -> ['7,5'];  sem km -> []
+function corridasKm_(text) {
+  const m = String(text).match(/(\d+(?:,\d+)?(?:\s*\/\s*\d+(?:,\d+)?)*)\s*km/i);
+  return m ? m[1].split('/').map(x => x.trim()).slice(0, 4) : [];
+}
+
+// Execute no editor para conferir as corridas lidas (Ver > Registros).
+function testeCorridas() {
+  if (!CORRIDAS.uf) return Logger.log('preencha CORRIDAS.uf no começo do script');
+  const html = corridasFetch_();
+  const i = html.search(/mostracorrida\.asp/i);
+  Logger.log(html.length + ' caracteres · trecho da primeira corrida: ' + html.slice(Math.max(0, i - 700), i + 500));
+  CacheService.getScriptCache().remove(corridasKey_());
+  const c = getCorridas_();
+  Logger.log(c.races.length + ' corridas');
+  c.races.slice(0, 40).forEach(r => Logger.log(r.d + ' | ' + r.city + ' | ' + r.name + ' | ' + (r.km.join('/') || '-') + ' km' +
+    (c.perto.indexOf(r.city) >= 0 ? ' | PERTO' : '')));
 }
 
 // ---------------- Agenda ----------------
@@ -529,6 +620,7 @@ function allowedPhotoIds_() {
     const cfg = PROFILES[k].photos || {};
     if (cfg.folder) getPhotos_({ folder: cfg.folder }).forEach(f => { ids[f.id] = true; });
   });
+  if (CORRIDAS.fotos) getPhotos_({ folder: CORRIDAS.fotos }).forEach(f => { ids[f.id] = true; });
   try { cache.put('fotos-permitidas', JSON.stringify(ids), 600); } catch (err) {}
   return ids;
 }
@@ -739,7 +831,10 @@ function decodeHtml_(s) {
     .replace(/&#x([0-9a-f]+);/gi, (m, h) => String.fromCharCode(parseInt(h, 16)))
     .replace(/&#(\d+);/g, (m, d) => String.fromCharCode(parseInt(d, 10)))
     .replace(/&quot;/g, '"').replace(/&apos;|&#39;/g, "'").replace(/&lt;/g, '<').replace(/&gt;/g, '>')
-    .replace(/&nbsp;/g, ' ').replace(/&amp;/g, '&');
+    .replace(/&nbsp;/g, ' ')
+    .replace(/&([aeiouc])(acute|grave|circ|tilde|uml|cedil);/gi, (m, l, k) => (l + ({ acute: '\u0301', grave: '\u0300', circ: '\u0302', tilde: '\u0303', uml: '\u0308', cedil: '\u0327' })[k.toLowerCase()]).normalize('NFC'))
+    .replace(/&ordf;/g, 'ª').replace(/&ordm;/g, 'º').replace(/&ndash;/g, '–').replace(/&mdash;/g, '—')
+    .replace(/&amp;/g, '&');
 }
 
 // "https://www.exemplo.com.br/feed" -> "exemplo"
