@@ -150,7 +150,7 @@ Os dados ficam em duas abas da mesma planilha do cardápio:
 
 A saúde de um item é quanto ainda resta do intervalo de troca, em km ou em meses (o que acabar primeiro). O km de hoje é estimado pela média de uso, a partir da leitura mais recente (a da aba Carro ou a da última troca registrada). Itens sem data nem km contam desde a compra. Em **Situação**, `trocar` deixa o item vermelho (por exemplo, um desgaste apontado pela oficina) e `sem registro` deixa o item cinza até você informar a data. A **Observação** aparece em amarelo no card.
 
-Para mostrar na TV, use o endereço `.../carro.html?api=URL_DO_SCRIPT&token=SEU_TOKEN`. No app Android TV, a tela do carro aparece junto com os perfis: use as setas ◀ ▶ do controle até ver "Carro" (ou escolha "Carro" nos ajustes). Use `?giro=0` para deixar o carro parado e `?3d=0` para tirar o carro 3D. No Chromecast antigo, o 3D fica desligado para poupar memória. Para conferir os dados, execute `testeCarro` no editor do Apps Script.
+Para mostrar na TV, use o endereço `.../carro.html?api=URL_DO_SCRIPT&token=SEU_TOKEN`. No app Android TV, troque o endereço da página nos ajustes para `.../carro.html` (o script e o token continuam os mesmos). Use `?giro=0` para deixar o carro parado e `?3d=0` para tirar o carro 3D. No Chromecast antigo, o 3D fica desligado para poupar memória. Para conferir os dados, execute `testeCarro` no editor do Apps Script.
 
 ## Fotos e vídeos do álbum
 
