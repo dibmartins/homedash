@@ -9,7 +9,7 @@ Cada pessoa pode ter o seu painel (`pessoa=pessoa1`, `pessoa2`...) e há um pain
 
 | Pasta | O que tem |
 |---|---|
-| `web/` | O painel (`index.html`) e a tela de manutenção do carro (`carro.html`). Abra no navegador para ver com dados de exemplo. Publicado no GitHub Pages a cada mudança na `main`. |
+| `web/` | O painel (`index.html`, com `carro3d.js` para a tela de manutenção do carro). Abra no navegador para ver com dados de exemplo. Publicado no GitHub Pages a cada mudança na `main`. |
 | `apps-script/` | O script do Google Apps Script (`Code.gs` + `appsscript.json`) que lê agenda, cardápio (planilha) e fotos. |
 | `android/` | App Android TV em Kotlin: um WebView em tela cheia que abre o painel ao ligar a TV. |
 | `scripts/` | `manter-painel-chromecast.sh`: mantém o painel num Chromecast sem Google TV a partir de um celular Android com Termux. |
@@ -139,7 +139,7 @@ O script guarda a programação por 3 horas. Para conferir, execute `testeCinema
 
 ## 11. Manutenção do carro (opcional)
 
-A página `carro.html` é uma tela à parte para acompanhar as revisões do carro: fundo preto, cards para o que precisa de atenção, barras de saúde (verde, amarelo, vermelho) para cada item e um carro 3D girando devagar. O carro é um modelo estilizado feito em código (`carro3d.js`), sem arquivo 3D externo. Abra `carro.html` no navegador para ver com dados de exemplo.
+De tempos em tempos (a cada 6 fotos, por 40 segundos), a tela da direita mostra a manutenção do carro no lugar da foto, como os filmes em cartaz. Ela aparece em todos os perfis. São cards para o que precisa de atenção, barras de saúde (verde, amarelo, vermelho) para cada item, medidores e um carro 3D girando devagar. O carro é um modelo estilizado feito em código (`carro3d.js`, com three.js), sem arquivo 3D externo, e só é desenhado enquanto a tela está aparecendo. No Chromecast antigo, que tem pouca memória, aparece uma foto fixa do mesmo carro (`carro.png`).
 
 Os dados ficam em duas abas da mesma planilha do cardápio:
 
@@ -150,7 +150,7 @@ Os dados ficam em duas abas da mesma planilha do cardápio:
 
 A saúde de um item é quanto ainda resta do intervalo de troca, em km ou em meses (o que acabar primeiro). O km de hoje é estimado pela média de uso, a partir da leitura mais recente (a da aba Carro ou a da última troca registrada). Itens sem data nem km contam desde a compra. Em **Situação**, `trocar` deixa o item vermelho (por exemplo, um desgaste apontado pela oficina) e `sem registro` deixa o item cinza até você informar a data. A **Observação** aparece em amarelo no card.
 
-Para mostrar na TV, use o endereço `.../carro.html?api=URL_DO_SCRIPT&token=SEU_TOKEN`. No app Android TV, troque o endereço da página nos ajustes para `.../carro.html` (o script e o token continuam os mesmos). Use `?giro=0` para deixar o carro parado e `?3d=0` para tirar o carro 3D. No Chromecast antigo, o 3D fica desligado para poupar memória. Para conferir os dados, execute `testeCarro` no editor do Apps Script.
+Sem a aba Manutenção, a tela não aparece. Para tirar de um perfil, coloque `carro: false` nele; para desligar numa TV, use `?carro=0` no endereço do painel, e `?carro3d=0` para trocar o 3D pela foto fixa. Para conferir os dados, execute `testeCarro` no editor do Apps Script.
 
 ## Fotos e vídeos do álbum
 

@@ -4,7 +4,7 @@ import { RoomEnvironment } from "three/addons/environments/RoomEnvironment.js";
 
 export function mountCar(el, opts = {}) {
   const W = el.clientWidth, H = el.clientHeight;
-  const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true, preserveDrawingBuffer: true });
+  const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true, preserveDrawingBuffer: !!opts.preserve });
   renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, opts.maxDpr || 1.5));
   renderer.setSize(W, H);
   renderer.toneMapping = THREE.ACESFilmicToneMapping;
@@ -181,8 +181,9 @@ export function mountCar(el, opts = {}) {
   car.rotation.y = opts.angle ?? -0.6;
   const spin = opts.spin ?? 0.12; // radianos por segundo: uma volta a cada ~50 s
   const minFrame = 1000 / (opts.fps || 30); // 30 quadros por segundo bastam para um giro lento
-  let last = performance.now(), drawn = 0;
+  let last = performance.now(), drawn = 0, alive = true;
   function frame(t) {
+    if (!alive) return;
     requestAnimationFrame(frame);
     if (t - drawn < minFrame) return;
     const dt = Math.min(0.2, (t - last) / 1000); last = t; drawn = t;
@@ -191,11 +192,22 @@ export function mountCar(el, opts = {}) {
   }
   renderer.render(scene, camera);
   if (spin) requestAnimationFrame(frame);
-  window.addEventListener("resize", () => {
+  const onResize = () => {
     const w = el.clientWidth, h = el.clientHeight;
     renderer.setSize(w, h); camera.aspect = w / h; camera.updateProjectionMatrix(); renderer.render(scene, camera);
-  });
+  };
+  window.addEventListener("resize", onResize);
   return {
+    // para o giro e devolve a memória da placa de vídeo (a tela do carro só aparece de vez em quando)
+    dispose() {
+      alive = false;
+      window.removeEventListener("resize", onResize);
+      scene.traverse(o => { if (o.geometry) o.geometry.dispose(); if (o.material) { if (o.material.map) o.material.map.dispose(); o.material.dispose(); } });
+      if (scene.environment) scene.environment.dispose();
+      pmrem.dispose();
+      renderer.dispose(); renderer.forceContextLoss();
+      renderer.domElement.remove();
+    },
     setAccent(c) { const col = new THREE.Color(c); ringMats.forEach(m => m.color.copy(col)); rim.color.copy(col); renderer.render(scene, camera); },
     setPaint(c) { paint.color.set(c); renderer.render(scene, camera); },
   };

@@ -9,8 +9,8 @@
 const TOKEN = 'troque-este-segredo';
 
 // ID da planilha "Painel da Família" (o trecho entre /d/ e /edit na URL).
-// Abas usadas: "Cardápio" (colunas Dia | Almoço | Jantar) e, na tela do carro (carro.html),
-// "Carro" e "Manutenção" (veja getCar_ mais abaixo). Vazio = sem cardápio e sem tela do carro.
+// Abas usadas: "Cardápio" (colunas Dia | Almoço | Jantar) e, para a tela de manutenção do carro,
+// "Carro" e "Manutenção" (veja getCar_). Vazio = sem cardápio e sem a tela do carro.
 const SHEET_ID = '';
 
 // Um perfil por painel. Use ?pessoa=<chave> na URL do painel.
@@ -85,7 +85,6 @@ function doGet(e) {
 
   if (p.spotify === 'login') return spotifyLoginPage_();
   if (p.spotify === 'now') return json_({ spotify: spotifyNowPlaying_() });
-  if (p.carro) return getCar_();
 
   if (p.foto) {
     // só entrega fotos das pastas configuradas, nunca outros arquivos do Drive
@@ -109,7 +108,7 @@ function doGet(e) {
   const safe = (label, fn, fallback) => {
     try { return fn(); } catch (err) { warnings.push(label + ': ' + err.message); return fallback; }
   };
-  const sheet = SHEET_ID && profile.menu ? safe('planilha', () => SpreadsheetApp.openById(SHEET_ID), null) : null;
+  const sheet = SHEET_ID && (profile.menu || profile.carro !== false) ? safe('planilha', () => SpreadsheetApp.openById(SHEET_ID), null) : null;
   const body = JSON.stringify({
     name: profile.name,
     events: safe('agenda', () => getEvents_(profile, days), []),
@@ -120,6 +119,7 @@ function doGet(e) {
     trash: profile.lixo || null,
     gospel: GOSPEL_API ? safe('evangelho', getGospel_, null) : null,
     cinema: CINEMA.code && profile.cinema !== false ? safe('cinema', getCinema_, null) : null,
+    carro: sheet && profile.carro !== false ? safe('carro', () => getCar_(sheet), null) : null,
     warnings: warnings,
     updated: new Date().toISOString(),
   });
@@ -748,7 +748,9 @@ function newsSourceName_(site) {
   return host.split('.')[0];
 }
 
-// ---------------- Manutenção do carro (tela carro.html) ----------------
+// ---------------- Manutenção do carro ----------------
+// A tela do carro entra no lugar de uma foto, de tempos em tempos. Sem a aba "Manutenção", ela não aparece.
+// Para tirar de um perfil, coloque carro: false nele.
 // Aba "Carro": duas colunas, Campo | Valor. Campos lidos (todos opcionais):
 //   Nome, Versão, Data da compra, Km atual, Data do km, Km por mês, Cor (ex.: #eef1f4)
 //   Sem "Km por mês", a média é calculada pela data da compra e pelo km mais recente.
@@ -757,12 +759,9 @@ function newsSourceName_(site) {
 //   Situação (opcional): "trocar" deixa o item vermelho (ex.: desgaste apontado pela oficina);
 //   "sem registro" deixa cinza, pedindo a data. Sem data nem km, o item conta desde a compra.
 //   Observação aparece em amarelo no card (ex.: "Recomendado na revisão").
-function getCar_() {
-  if (!SHEET_ID) return json_({ error: 'defina SHEET_ID no script' });
-  const cache = CacheService.getScriptCache();
-  const cached = cache.get('carro');
-  if (cached) return ContentService.createTextOutput(cached).setMimeType(ContentService.MimeType.JSON);
-  const sheet = SpreadsheetApp.openById(SHEET_ID);
+function getCar_(sheet) {
+  const tabItens = sheet.getSheetByName('Manutenção');
+  if (!tabItens) return null;
   const day = v => v instanceof Date ? Utilities.formatDate(v, Session.getScriptTimeZone(), 'yyyy-MM-dd') : String(v || '').trim();
   const val = v => v instanceof Date ? day(v) : (typeof v === 'number' ? v : String(v || '').trim());
   const norm = s => String(s || '').trim().toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
@@ -779,15 +778,13 @@ function getCar_() {
     nome: String(r[0]).trim(), grupo: String(r[1] || '').trim(), data: day(r[2]), km: val(r[3]),
     intervaloKm: val(r[4]), intervaloMeses: val(r[5]), situacao: String(r[6] || '').trim(), obs: String(r[7] || '').trim(),
   }));
-  const body = JSON.stringify({ carro: carro, itens: itens, updated: new Date().toISOString() });
-  try { cache.put('carro', body, 600); } catch (err) { /* grande demais para o cache */ }
-  return ContentService.createTextOutput(body).setMimeType(ContentService.MimeType.JSON);
+  return { carro: carro, itens: itens };
 }
 
 /** Rode no editor para conferir o que a tela do carro vai mostrar. */
 function testeCarro() {
-  CacheService.getScriptCache().remove('carro');
-  Logger.log(getCar_().getContent());
+  if (!SHEET_ID) { Logger.log('defina SHEET_ID'); return; }
+  Logger.log(JSON.stringify(getCar_(SpreadsheetApp.openById(SHEET_ID)), null, 2));
 }
 
 // ---------------- utilitários ----------------
