@@ -22,6 +22,7 @@ import androidx.core.view.WindowInsetsControllerCompat
 
 /**
  * Tela cheia com o painel. Segure o botão OK do controle (ou aperte MENU) para abrir as configurações.
+ * Setas para os lados trocam de perfil; CH+ / CH− pulam para a tela seguinte/anterior do painel.
  */
 class MainActivity : AppCompatActivity() {
 
@@ -111,6 +112,12 @@ class MainActivity : AppCompatActivity() {
         Toast.makeText(this, "◀  " + Prefs.PROFILES[next] + "  ▶", Toast.LENGTH_SHORT).show()
     }
 
+    // a página decide qual é a próxima tela; segurar o botão não repete
+    private fun skipScreen(step: Int, event: KeyEvent) {
+        if (event.repeatCount > 0) return
+        web.evaluateJavascript("window.__skipScreen && window.__skipScreen($step)", null)
+    }
+
     private fun scheduleRetry() {
         handler.removeCallbacks(retry)
         handler.postDelayed(retry, 30_000)
@@ -143,6 +150,9 @@ class MainActivity : AppCompatActivity() {
             }
             KeyEvent.KEYCODE_DPAD_RIGHT -> { switchProfile(+1); return true }
             KeyEvent.KEYCODE_DPAD_LEFT -> { switchProfile(-1); return true }
+            // botões de canal: tela seguinte/anterior do painel (fotos, cinema, carro)
+            KeyEvent.KEYCODE_CHANNEL_UP, KeyEvent.KEYCODE_PAGE_DOWN, KeyEvent.KEYCODE_MEDIA_NEXT -> { skipScreen(+1, event); return true }
+            KeyEvent.KEYCODE_CHANNEL_DOWN, KeyEvent.KEYCODE_PAGE_UP, KeyEvent.KEYCODE_MEDIA_PREVIOUS -> { skipScreen(-1, event); return true }
         }
         return super.onKeyDown(keyCode, event)
     }
