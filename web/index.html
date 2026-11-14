@@ -1410,7 +1410,7 @@
   // ilustração, pronúncia, classe, significado e exemplo em inglês; a tradução aparece só no fim.
   // As palavras vêm da lista em palavras.js (3 por dia, de segunda a sábado; no domingo, revisão da semana).
   // Significado, pronúncia e exemplo vêm do dicionário gratuito dictionaryapi.dev e ficam guardados na TV.
-  // A ilustração é desenhada pelo serviço gratuito pollinations.ai a partir da palavra (sempre a mesma para a mesma palavra).
+  // A ilustração vem do Openverse (banco de imagens livres); sem imagem, fica a inicial da palavra.
   var VOC_PARAM = (params.get("ingles") || "").toLowerCase();
   var VOC_EVERY = 5, VOC_WORD_MS = 15 * 1000, VOC_REVEAL_MS = 9 * 1000, VOC_MS = 3 * VOC_WORD_MS;
   var VOC_EPOCH = new Date(2026, 0, 5); // uma segunda-feira: o dia 0 da lista
@@ -1489,19 +1489,28 @@
     try {
       for (var i = localStorage.length - 1; i >= 0; i--) {
         var k = localStorage.key(i);
-        if (k && k.indexOf("voc1:") === 0) {
+        if (k && (k.indexOf("voc1:") === 0 || k.indexOf("vocimg1:") === 0)) {
           var v = JSON.parse(localStorage.getItem(k) || "null");
           if (!v || Date.now() - v.t > 30 * 864e5) localStorage.removeItem(k);
         }
       }
     } catch (e) {}
   }
-  function vocSeed(w) { var h = 7; for (var i = 0; i < w.length; i++) h = (h * 31 + w.charCodeAt(i)) % 999983; return h; }
+  // ilustração: a primeira imagem do Openverse (banco de imagens livres, sem chave) para a palavra,
+  // de preferência um desenho; sem desenho, uma foto. O endereço fica guardado na TV, como o dicionário.
+  function vocImgSearch(w, cat) {
+    return fetch("https://api.openverse.org/v1/images/?page_size=5&mature=false&q=" + encodeURIComponent(w) + (cat ? "&category=" + cat : ""))
+      .then(function (r) { if (!r.ok) throw new Error("imagens " + r.status); return r.json(); })
+      .then(function (j) { var it = (j.results || []).filter(function (x) { return x.thumbnail || x.url; })[0]; return it ? it.thumbnail || it.url : ""; });
+  }
   function vocImg(x) {
-    var px = IS_CAST ? 512 : 768;
-    var prompt = "Simple flat vector illustration that represents the English " + VOC_POS[x.pos] + ' "' + x.w + '"' +
-      ", friendly, soft colors, centered, plain dark navy background, no text, no letters, no words";
-    return "https://image.pollinations.ai/prompt/" + encodeURIComponent(prompt) + "?width=" + px + "&height=" + px + "&seed=" + vocSeed(x.w) + "&nologo=true";
+    var key = "vocimg1:" + x.w, hit = null;
+    try { hit = JSON.parse(localStorage.getItem(key) || "null"); } catch (e) {}
+    if (hit) return Promise.resolve(hit.u);
+    return vocImgSearch(x.w, "illustration").then(function (u) { return u || vocImgSearch(x.w, ""); }).then(function (u) {
+      try { localStorage.setItem(key, JSON.stringify({ u: u, t: Date.now() })); } catch (e) {}
+      return u;
+    });
   }
   // uma vez por dia, já busca o dicionário e pede as ilustrações de hoje, para estarem prontas quando a tela aparecer
   function vocPrepare() {
@@ -1514,7 +1523,7 @@
     t.words.forEach(function (x, i) {
       setTimeout(function () {
         vocFetch(x).catch(function () {});
-        if (!t.review) { var im = new Image(); im.src = vocImg(x); }
+        vocImg(x).then(function (u) { if (u) { var im = new Image(); im.src = u; } }).catch(function () {});
       }, i * 2000);
     });
   }
@@ -1542,7 +1551,7 @@
       wd.classList.remove("out");
       var img = new Image();
       img.onload = function () { var box = $("voc-img"); if (box && vocOn && gen === vocTurn) { box.style.backgroundImage = 'url("' + img.src + '")'; box.classList.add("ok"); } };
-      img.src = vocImg(x);
+      vocImg(x).then(function (u) { if (u) img.src = u; }).catch(function () {});
       vocTimers.push(setTimeout(function () { var pt = $("voc-pt"); if (pt) pt.classList.add("ok"); }, VOC_REVEAL_MS));
       if (i + 1 < words.length) vocTimers.push(setTimeout(function () {
         wd.classList.add("out");
