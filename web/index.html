@@ -339,7 +339,7 @@
   #voc .ill i.ok { opacity: 1; }
   .lite #voc .ill i { transition: none; }
   #voc .tx { flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; gap: 1.6vh; }
-  #voc .w { font-size: 4.6vw; font-weight: 700; line-height: 1; letter-spacing: -0.01em; overflow-wrap: anywhere; }
+  #voc .w { font-size: 4.6vw; font-weight: 700; line-height: 1; letter-spacing: -0.01em; white-space: nowrap; overflow: hidden; }
   #voc .ph { display: flex; align-items: baseline; gap: 0.8vw; flex-wrap: wrap; font-size: 1.5vw; color: #a9b4c4; }
   #voc .pos { font-size: 0.85vw; font-weight: 700; letter-spacing: 0.14em; text-transform: uppercase; color: #5cc8ff;
     padding: 0.25em 0.6em; border-radius: 0.3em; background: rgba(92,200,255,0.14); }
@@ -1489,28 +1489,67 @@
     try {
       for (var i = localStorage.length - 1; i >= 0; i--) {
         var k = localStorage.key(i);
-        if (k && (k.indexOf("voc1:") === 0 || k.indexOf("vocimg1:") === 0)) {
+        if (k && (k.indexOf("voc1:") === 0 || k.indexOf("vocimg2:") === 0)) {
           var v = JSON.parse(localStorage.getItem(k) || "null");
           if (!v || Date.now() - v.t > 30 * 864e5) localStorage.removeItem(k);
         }
       }
     } catch (e) {}
   }
-  // ilustração: a primeira imagem do Openverse (banco de imagens livres, sem chave) para a palavra,
-  // de preferência um desenho; sem desenho, uma foto. O endereço fica guardado na TV, como o dicionário.
-  function vocImgSearch(w, cat) {
-    return fetch("https://api.openverse.org/v1/images/?page_size=5&mature=false&q=" + encodeURIComponent(w) + (cat ? "&category=" + cat : ""))
-      .then(function (r) { if (!r.ok) throw new Error("imagens " + r.status); return r.json(); })
-      .then(function (j) { var it = (j.results || []).filter(function (x) { return x.thumbnail || x.url; })[0]; return it ? it.thumbnail || it.url : ""; });
+  // ilustração: procura a palavra em dois bancos de imagens livres, sem chave: o Openverse (de preferência
+  // desenhos) e o Wikimedia Commons. A tela tenta as imagens em ordem até uma carregar, e guarda na TV
+  // a que deu certo. Se nenhuma servir, fica a inicial da palavra (e tenta de novo no dia seguinte).
+  function vocJson(url) {
+    return fetch(url).then(function (r) { if (!r.ok) throw new Error(r.status); return r.json(); });
   }
+  function vocOpenverse(w) {
+    return vocJson("https://api.openverse.org/v1/images/?page_size=4&mature=false&category=illustration&q=" + encodeURIComponent(w))
+      .then(function (j) {
+        return (j.results || []).map(function (x) { return x.thumbnail; }).filter(function (u) { return /^https:/.test(u || ""); }).slice(0, 2);
+      }).catch(function () { return []; });
+  }
+  function vocCommons(w) {
+    return vocJson("https://commons.wikimedia.org/w/api.php?action=query&format=json&origin=*&generator=search&gsrnamespace=6&gsrlimit=6" +
+      "&gsrsearch=" + encodeURIComponent(w + " filetype:bitmap|drawing") + "&prop=imageinfo&iiprop=url|mime&iiurlwidth=" + (IS_CAST ? 512 : 768))
+      .then(function (j) {
+        var pages = j.query && j.query.pages ? Object.keys(j.query.pages).map(function (k) { return j.query.pages[k]; }) : [];
+        pages.sort(function (a, b) { return (a.index || 0) - (b.index || 0); });
+        return pages.map(function (p) { var ii = (p.imageinfo || [])[0] || {}; return /image\/(jpeg|png|svg)/.test(ii.mime || "") ? ii.thumburl : ""; })
+          .filter(Boolean).slice(0, 3);
+      }).catch(function () { return []; });
+  }
+  function vocLoad(src) {
+    return new Promise(function (ok, fail) {
+      var img = new Image(), t = setTimeout(function () { img.src = ""; fail(); }, 10000);
+      img.onload = function () { clearTimeout(t); img.naturalWidth > 60 ? ok(src) : fail(); };
+      img.onerror = function () { clearTimeout(t); fail(); };
+      img.src = src;
+    });
+  }
+  var vocImgBusy = {};
   function vocImg(x) {
-    var key = "vocimg1:" + x.w, hit = null;
+    var key = "vocimg2:" + x.w, hit = null;
     try { hit = JSON.parse(localStorage.getItem(key) || "null"); } catch (e) {}
-    if (hit) return Promise.resolve(hit.u);
-    return vocImgSearch(x.w, "illustration").then(function (u) { return u || vocImgSearch(x.w, ""); }).then(function (u) {
+    if (hit && (hit.u || Date.now() - hit.t < 864e5)) return Promise.resolve(hit.u);
+    if (vocImgBusy[x.w]) return vocImgBusy[x.w];
+    var p = Promise.all([vocOpenverse(x.w), vocCommons(x.w)]).then(function (r) {
+      var list = r[0].concat(r[1]);
+      var tryAt = function (i) { return i >= list.length ? Promise.resolve("") : vocLoad(list[i]).catch(function () { return tryAt(i + 1); }); };
+      return tryAt(0);
+    }).then(function (u) {
       try { localStorage.setItem(key, JSON.stringify({ u: u, t: Date.now() })); } catch (e) {}
+      delete vocImgBusy[x.w];
       return u;
     });
+    return (vocImgBusy[x.w] = p);
+  }
+  // a palavra fica numa linha só: se não couber, a letra diminui
+  function vocFit() {
+    var w = document.querySelector("#voc .w");
+    if (!w) return;
+    var size = 4.6;
+    w.style.fontSize = size + "vw";
+    while (w.scrollWidth > w.clientWidth + 1 && size > 2) { size -= 0.2; w.style.fontSize = size + "vw"; }
   }
   // uma vez por dia, já busca o dicionário e pede as ilustrações de hoje, para estarem prontas quando a tela aparecer
   function vocPrepare() {
@@ -1523,7 +1562,7 @@
     t.words.forEach(function (x, i) {
       setTimeout(function () {
         vocFetch(x).catch(function () {});
-        vocImg(x).then(function (u) { if (u) { var im = new Image(); im.src = u; } }).catch(function () {});
+        vocImg(x).catch(function () {});
       }, i * 2000);
     });
   }
@@ -1549,9 +1588,11 @@
       if (!vocOn || gen !== vocTurn) return;
       wd.innerHTML = vocWordHtml(x, info);
       wd.classList.remove("out");
-      var img = new Image();
-      img.onload = function () { var box = $("voc-img"); if (box && vocOn && gen === vocTurn) { box.style.backgroundImage = 'url("' + img.src + '")'; box.classList.add("ok"); } };
-      vocImg(x).then(function (u) { if (u) img.src = u; }).catch(function () {});
+      vocFit();
+      vocImg(x).then(function (u) {
+        var box = $("voc-img");
+        if (u && box && vocOn && gen === vocTurn) { box.style.backgroundImage = 'url("' + u + '")'; box.classList.add("ok"); }
+      }).catch(function () {});
       vocTimers.push(setTimeout(function () { var pt = $("voc-pt"); if (pt) pt.classList.add("ok"); }, VOC_REVEAL_MS));
       if (i + 1 < words.length) vocTimers.push(setTimeout(function () {
         wd.classList.add("out");
