@@ -27,6 +27,8 @@ const SHEET_ID = '';
 //  lixo:    lembrete de colocar o lixo para fora, ex.: { dias: ['segunda', 'sexta'], hora: '07:30' }.
 //           Aparece na véspera a partir das 17h (mude com vespera: '18:00') e some 30 min depois da
 //           hora da coleta (mude com ate: '08:30'). Sem "lixo", o lembrete não aparece.
+//  ingles:  nível da tela de palavras em inglês: 'basico', 'intermediario' (padrão) ou 'avancado'.
+//           ingles: false tira essa tela do perfil. As palavras e os significados vêm sozinhos, sem planilha.
 // Troque as chaves e os nomes pelos da sua casa na SUA cópia do script (não no repositório).
 const PROFILES = {
   familia: {
@@ -129,6 +131,7 @@ function doGet(e) {
     cinema: CINEMA.code && profile.cinema !== false ? safe('cinema', getCinema_, null) : null,
     corridas: CORRIDAS.uf && profile.corridas !== false ? safe('corridas', getCorridas_, null) : null,
     carro: sheet && profile.carro !== false ? safe('carro', () => getCar_(sheet), null) : null,
+    ingles: profile.ingles === undefined ? null : profile.ingles,
     warnings: warnings,
     updated: new Date().toISOString(),
   });

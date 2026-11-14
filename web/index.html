@@ -6,6 +6,7 @@
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Caveat:wght@500&family=Great+Vibes&family=Cormorant+Garamond:wght@500&family=Rajdhani:wght@600;700&display=swap">
 <script type="importmap">{ "imports": { "three": "https://cdn.jsdelivr.net/npm/three@0.170.0/build/three.module.min.js", "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.170.0/examples/jsm/" } }</script>
 <script src="versiculos.js"></script>
+<script src="palavras.js"></script>
 <script src="universo.js"></script>
 <title>Painel da Família</title>
 <!--
@@ -23,6 +24,8 @@
     cinema  0 desliga os filmes em cartaz (que aparecem no lugar de uma foto, a cada 3)
     carro   0 desliga a tela de manutenção do carro (que aparece no lugar de uma foto, de tempos em tempos)
     corridas 0 desliga a tela de corridas de rua (que aparece no lugar de uma foto, de tempos em tempos)
+    ingles  nível das palavras em inglês: basico, intermediario ou avancado (o padrão vem do perfil no script,
+            senão intermediario); 0 desliga a tela de palavras (que aparece no lugar de uma foto, de tempos em tempos)
     carro3d 0 tira o carro 3D dessa tela (no Chromecast ele já fica desligado, para poupar memória)
   Sem "api", o painel mostra dados de exemplo.
 -->
@@ -307,6 +310,50 @@
   #corr .foto.ok { opacity: 1; }
   .lite #corr .foto { transition: none; }
 
+  /* ---------- palavras em inglês, no lugar da foto ---------- */
+  #voc { position: fixed; left: 45vw; right: 0; top: 0; bottom: 0; z-index: 1; overflow: hidden; color: #eef1f5;
+    background: radial-gradient(ellipse at 70% -25%, #0b2e45, #11151c 62%);
+    -webkit-mask-image: linear-gradient(90deg, transparent 0, #000 9%); mask-image: linear-gradient(90deg, transparent 0, #000 9%);
+    opacity: 0; transition: opacity 1.5s ease; text-shadow: none; padding: 4vh 2.6vw 3vh 5vw; display: flex; flex-direction: column; }
+  #voc.show { opacity: 1; }
+  body.has-news #voc { bottom: 6vh; }
+  .lite body.has-news #voc { bottom: 8.8vh; }
+  body.voc #verse, body.voc #bg { opacity: 0; }
+  .lite #voc { -webkit-mask-image: none; mask-image: none; transition: none; }
+  #voc .bb { font-family: "Bebas Neue", Impact, "Arial Narrow", sans-serif; font-weight: 400; letter-spacing: 0.02em; }
+  #voc .mu { color: #9aa1ad; }
+  #voc .chead { display: flex; align-items: baseline; gap: 1.2vw; flex: none; }
+  #voc .brand { color: #5cc8ff; font-size: 3.2vw; line-height: 0.9; white-space: nowrap; }
+  #voc .cname { font-size: 1.4vw; color: #d9dce3; flex: 1 1 auto; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  #voc .dots { display: flex; gap: 0.5vw; align-self: center; }
+  #voc .dots i { width: 0.7vw; height: 0.7vw; border-radius: 50%; background: rgba(255,255,255,0.18); }
+  #voc .dots i.on { background: #5cc8ff; }
+  #voc .wd { flex: 1 1 0; min-height: 0; display: flex; gap: 2.6vw; align-items: center; margin-top: 3vh; transition: opacity 0.8s ease; }
+  #voc .wd.out { opacity: 0; }
+  .lite #voc .wd { transition: none; }
+  /* ilustração: até ela chegar, fica a primeira letra da palavra */
+  #voc .ill { flex: none; position: relative; width: 25vw; height: 25vw; max-height: 64vh; border-radius: 1vw; overflow: hidden;
+    background: linear-gradient(160deg, #173a52, #0e1a26); }
+  #voc .ill b { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; font: 400 12vw/1 "Bebas Neue", Impact, sans-serif; color: rgba(92,200,255,0.35); }
+  #voc .ill i { position: absolute; inset: 0; background: center / cover no-repeat; opacity: 0; transition: opacity 1s ease; }
+  #voc .ill i.ok { opacity: 1; }
+  .lite #voc .ill i { transition: none; }
+  #voc .tx { flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; gap: 1.6vh; }
+  #voc .w { font-size: 4.6vw; font-weight: 700; line-height: 1; letter-spacing: -0.01em; overflow-wrap: anywhere; }
+  #voc .ph { display: flex; align-items: baseline; gap: 0.8vw; flex-wrap: wrap; font-size: 1.5vw; color: #a9b4c4; }
+  #voc .pos { font-size: 0.85vw; font-weight: 700; letter-spacing: 0.14em; text-transform: uppercase; color: #5cc8ff;
+    padding: 0.25em 0.6em; border-radius: 0.3em; background: rgba(92,200,255,0.14); }
+  #voc .df { font-size: 1.55vw; line-height: 1.35; display: -webkit-box; -webkit-line-clamp: 4; -webkit-box-orient: vertical; overflow: hidden; }
+  #voc .ex { font-size: 1.3vw; line-height: 1.4; color: #c7cfdb; font-style: italic; padding-left: 1vw; border-left: 0.25vw solid rgba(92,200,255,0.5);
+    display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
+  #voc .ex em { font-style: italic; font-weight: 700; color: #fff; }
+  /* a tradução aparece só no fim, como uma resposta */
+  #voc .pt { margin-top: 1vh; display: flex; align-items: baseline; gap: 1vw; opacity: 0; transition: opacity 1s ease; }
+  #voc .pt.ok { opacity: 1; }
+  .lite #voc .pt { transition: none; }
+  #voc .pt span { font-size: 0.85vw; letter-spacing: 0.2em; text-transform: uppercase; color: #9aa1ad; white-space: nowrap; }
+  #voc .pt b { font-size: 2.2vw; color: #f2b544; }
+
   /* ---------- manutenção do carro, no lugar da foto ---------- */
   #carro { position: fixed; left: 45vw; right: 0; top: 0; bottom: 0; z-index: 1; overflow: hidden; color: #e5e7eb;
     background: radial-gradient(ellipse at 60% -20%, #2a0a0d, #11151c 65%); /* o mesmo fundo do cinema */
@@ -391,6 +438,7 @@
   <div id="cine" class="hidden"></div>
   <div id="carro" class="hidden"></div>
   <div id="corr" class="hidden"></div>
+  <div id="voc" class="hidden"></div>
   <div id="verse" class="hidden"><div class="vt"></div><div class="vr"></div></div>
   <div id="status"></div>
   <div id="news" class="hidden"><div class="tag">Notícias</div><div class="lane"><div id="news-track"></div></div></div>
@@ -855,9 +903,11 @@
     if (cineOn) hideCine();
     else if (carOn) hideCar();
     else if (corrOn) hideCorr();
+    else if (vocOn) hideVoc();
     else if (cineReady() && ++cineCount >= CINE_EVERY) { cineCount = 0; showCine(); scheduleNext(CINE_MS); return; }
     else if (carReady() && ++carCount >= CAR_EVERY) { carCount = 0; showCar(); scheduleNext(CAR_MS); return; }
     else if (corrReady() && ++corrCount >= CORR_EVERY) { corrCount = 0; showCorr(); scheduleNext(CORR_MS); return; }
+    else if (vocReady() && ++vocCount >= VOC_EVERY) { vocCount = 0; showVoc(); scheduleNext(VOC_MS); return; }
     showPhoto(1);
   }
   function showPhoto(step) {
@@ -868,7 +918,7 @@
     prefetchNext();
   }
   // Botões de canal do controle (CH+ / CH−, no app da TV) ou Page Up / Page Down no computador:
-  // pula para a tela seguinte/anterior na ordem fotos → cinema → carro → corridas (só as que têm dados).
+  // pula para a tela seguinte/anterior na ordem fotos → cinema → carro → corridas → inglês (só as que têm dados).
   // Se só houver fotos, passa para a foto seguinte/anterior. Depois a rotação segue normalmente.
   var lastSkip = 0;
   function skipScreen(step) {
@@ -879,15 +929,18 @@
     if (cineReady()) list.push("cine");
     if (carReady()) list.push("carro");
     if (corrReady()) list.push("corr");
-    var cur = cineOn ? "cine" : carOn ? "carro" : corrOn ? "corr" : "fotos";
+    if (vocReady()) list.push("voc");
+    var cur = cineOn ? "cine" : carOn ? "carro" : corrOn ? "corr" : vocOn ? "voc" : "fotos";
     var i = Math.max(0, list.indexOf(cur));
     var to = list[(i + step + list.length) % list.length];
     if (cineOn) hideCine();
     if (carOn) hideCar();
     if (corrOn) hideCorr();
+    if (vocOn) hideVoc();
     if (to === "cine") { cineCount = 0; showCine(); scheduleNext(CINE_MS); }
     else if (to === "carro") { carCount = 0; showCar(); scheduleNext(CAR_MS); }
     else if (to === "corr") { corrCount = 0; showCorr(); scheduleNext(CORR_MS); }
+    else if (to === "voc") { vocCount = 0; showVoc(); scheduleNext(VOC_MS); }
     else if (photos.length) showPhoto(cur === "fotos" ? step : 1);
   }
   window.__skipScreen = skipScreen;
@@ -1352,6 +1405,188 @@
     corrHideTimer = setTimeout(function () { el.classList.add("hidden"); el.innerHTML = ""; }, 1600);
   }
 
+  // ---------- palavras em inglês ----------
+  // De tempos em tempos, a tela da direita mostra as 3 palavras do dia, uma de cada vez, no lugar da foto:
+  // ilustração, pronúncia, classe, significado e exemplo em inglês; a tradução aparece só no fim.
+  // As palavras vêm da lista em palavras.js (3 por dia, de segunda a sábado; no domingo, revisão da semana).
+  // Significado, pronúncia e exemplo vêm do dicionário gratuito dictionaryapi.dev e ficam guardados na TV.
+  // A ilustração é desenhada pelo serviço gratuito pollinations.ai a partir da palavra (sempre a mesma para a mesma palavra).
+  var VOC_PARAM = (params.get("ingles") || "").toLowerCase();
+  var VOC_EVERY = 5, VOC_WORD_MS = 15 * 1000, VOC_REVEAL_MS = 9 * 1000, VOC_MS = 3 * VOC_WORD_MS;
+  var VOC_EPOCH = new Date(2026, 0, 5); // uma segunda-feira: o dia 0 da lista
+  var VOC_POS = { n: "noun", v: "verb", a: "adjective", r: "adverb" };
+  var VOC_NIVEL = { basico: "básico", intermediario: "intermediário", avancado: "avançado" };
+  var vocCount = 0, vocTurn = 0, vocOn = false, vocHideTimer = null, vocTimers = [], vocLists = {}, vocWarm = "";
+  function vocLevel() {
+    var p = lastData && lastData.ingles;
+    if (VOC_PARAM === "0" || p === false) return null;
+    var lv = VOC_NIVEL[VOC_PARAM] ? VOC_PARAM : VOC_NIVEL[p] ? p : "intermediario";
+    return window.PALAVRAS && window.PALAVRAS[lv] ? lv : null;
+  }
+  // a lista do nível, embaralhada sempre do mesmo jeito (para não vir uma fruta atrás da outra)
+  function vocList(lv) {
+    if (vocLists[lv]) return vocLists[lv];
+    var a = window.PALAVRAS[lv].split(";").map(function (e) { var f = e.split(":"); return { w: f[0], pt: f[1], pos: f[2] }; });
+    var seed = 20260105;
+    for (var i = a.length - 1; i > 0; i--) {
+      seed = (seed * 1103515245 + 12345) % 2147483648;
+      var j = seed % (i + 1), t = a[i]; a[i] = a[j]; a[j] = t;
+    }
+    return (vocLists[lv] = a);
+  }
+  // as palavras de hoje; no domingo, as 18 da semana (a tela mostra 3 de cada vez)
+  function vocToday() {
+    var lv = vocLevel();
+    if (!lv) return null;
+    var list = vocList(lv), d = Math.round((startOfDay(new Date()) - VOC_EPOCH) / 864e5);
+    var week = Math.floor(d / 7), dow = ((d % 7) + 7) % 7, slots = [];
+    if (dow === 6) for (var s = 0; s < 6; s++) slots.push(week * 6 + s); else slots.push(week * 6 + dow);
+    var words = [];
+    slots.forEach(function (sl) { for (var k = 0; k < 3; k++) words.push(list[(((sl * 3 + k) % list.length) + list.length) % list.length]); });
+    return { lv: lv, review: dow === 6, words: words };
+  }
+  function vocReady() { return !!vocToday(); }
+  function vocKey(x) { return "voc1:" + x.w + ":" + x.pos; }
+  function vocCached(x) { try { return JSON.parse(localStorage.getItem(vocKey(x)) || "null"); } catch (e) { return null; } }
+  // pega no dicionário o significado da classe certa (noun, verb...) e, se tiver, um exemplo
+  function vocParse(x, entries) {
+    var want = VOC_POS[x.pos], ph = "", best = null;
+    (entries || []).forEach(function (en) {
+      if (!ph) ph = en.phonetic || ((en.phonetics || []).filter(function (p) { return p.text; })[0] || {}).text || "";
+      (en.meanings || []).forEach(function (m) {
+        var defs = m.definitions || [];
+        if (!defs.length) return;
+        var withEx = defs.filter(function (d) { return d.example; })[0];
+        var score = (m.partOfSpeech === want ? 2 : 0) + (withEx ? 1 : 0);
+        if (!best || score > best.score) best = { score: score, pos: m.partOfSpeech, d: vocShort(defs[0].definition), e: withEx ? withEx.example : "" };
+        // o primeiro significado é o mais comum; o exemplo pode vir de um significado vizinho da mesma classe
+        if (best && best.pos === m.partOfSpeech && !best.e && withEx && m.partOfSpeech === want) best.e = withEx.example;
+      });
+    });
+    return { ph: ph, pos: best ? best.pos : want, d: best ? best.d : "", e: best ? best.e : "", t: Date.now() };
+  }
+  // definições longas ficam só com a primeira parte (antes do primeiro ";"), para ler de longe
+  function vocShort(d) {
+    d = String(d || "");
+    var i = d.indexOf("; ");
+    return i > 30 ? d.slice(0, i) + "." : d;
+  }
+  function vocFetch(x) {
+    var hit = vocCached(x);
+    if (hit) return Promise.resolve(hit);
+    return fetch("https://api.dictionaryapi.dev/api/v2/entries/en/" + encodeURIComponent(x.w)).then(function (r) {
+      if (r.status === 404) return [];
+      if (!r.ok) throw new Error("dicionário " + r.status);
+      return r.json();
+    }).then(function (j) {
+      var info = vocParse(x, j);
+      try { localStorage.setItem(vocKey(x), JSON.stringify(info)); } catch (e) {}
+      return info;
+    });
+  }
+  // apaga do aparelho o que foi guardado há mais de 30 dias
+  function vocPrune() {
+    try {
+      for (var i = localStorage.length - 1; i >= 0; i--) {
+        var k = localStorage.key(i);
+        if (k && k.indexOf("voc1:") === 0) {
+          var v = JSON.parse(localStorage.getItem(k) || "null");
+          if (!v || Date.now() - v.t > 30 * 864e5) localStorage.removeItem(k);
+        }
+      }
+    } catch (e) {}
+  }
+  function vocSeed(w) { var h = 7; for (var i = 0; i < w.length; i++) h = (h * 31 + w.charCodeAt(i)) % 999983; return h; }
+  function vocImg(x) {
+    var px = IS_CAST ? 512 : 768;
+    var prompt = "Simple flat vector illustration that represents the English " + VOC_POS[x.pos] + ' "' + x.w + '"' +
+      ", friendly, soft colors, centered, plain dark navy background, no text, no letters, no words";
+    return "https://image.pollinations.ai/prompt/" + encodeURIComponent(prompt) + "?width=" + px + "&height=" + px + "&seed=" + vocSeed(x.w) + "&nologo=true";
+  }
+  // uma vez por dia, já busca o dicionário e pede as ilustrações de hoje, para estarem prontas quando a tela aparecer
+  function vocPrepare() {
+    var t = vocToday();
+    if (!t) return;
+    var tag = t.lv + startOfDay(new Date()).getTime();
+    if (vocWarm === tag) return;
+    vocWarm = tag;
+    vocPrune();
+    t.words.forEach(function (x, i) {
+      setTimeout(function () {
+        vocFetch(x).catch(function () {});
+        if (!t.review) { var im = new Image(); im.src = vocImg(x); }
+      }, i * 2000);
+    });
+  }
+  function vocExample(e, w) {
+    var h = esc(e), re = new RegExp("\\b(" + w.replace(/[.*+?^${}()|[\]\\]/g, "\\$&") + "\\w*)", "i");
+    return h.replace(re, "<em>$1</em>");
+  }
+  function vocWordHtml(x, info) {
+    info = info || {};
+    return '<div class="ill"><b>' + esc(x.w.charAt(0).toUpperCase()) + '</b><i id="voc-img"></i></div>' +
+      '<div class="tx"><div class="w">' + esc(x.w) + "</div>" +
+      '<div class="ph">' + (info.ph ? "<span>" + esc(info.ph) + "</span>" : "") + '<span class="pos">' + esc(info.pos || VOC_POS[x.pos]) + "</span></div>" +
+      (info.d ? '<div class="df">' + esc(info.d) + "</div>" : "") +
+      (info.e ? '<div class="ex">' + vocExample(info.e, x.w) + "</div>" : "") +
+      '<div class="pt" id="voc-pt"><span>Em português</span><b>' + esc(x.pt) + "</b></div></div>";
+  }
+  function vocShowWord(words, i, gen) {
+    if (!vocOn || gen !== vocTurn) return;
+    var x = words[i], wd = $("voc-wd");
+    if (!wd) return;
+    [].forEach.call($("voc").querySelectorAll(".dots i"), function (d, k) { d.classList.toggle("on", k === i); });
+    var put = function (info) {
+      if (!vocOn || gen !== vocTurn) return;
+      wd.innerHTML = vocWordHtml(x, info);
+      wd.classList.remove("out");
+      var img = new Image();
+      img.onload = function () { var box = $("voc-img"); if (box && vocOn && gen === vocTurn) { box.style.backgroundImage = 'url("' + img.src + '")'; box.classList.add("ok"); } };
+      img.src = vocImg(x);
+      vocTimers.push(setTimeout(function () { var pt = $("voc-pt"); if (pt) pt.classList.add("ok"); }, VOC_REVEAL_MS));
+      if (i + 1 < words.length) vocTimers.push(setTimeout(function () {
+        wd.classList.add("out");
+        vocTimers.push(setTimeout(function () { vocShowWord(words, i + 1, gen); }, IS_CAST ? 0 : 800));
+      }, VOC_WORD_MS - (IS_CAST ? 0 : 800)));
+    };
+    // não espera o dicionário mais que 4 s: sem ele, mostra a palavra, a classe e a tradução
+    var done = false, finish = function (info) { if (!done) { done = true; put(info); } };
+    vocFetch(x).then(finish, function () { finish(null); });
+    vocTimers.push(setTimeout(function () { finish(vocCached(x)); }, 4000));
+  }
+  function showVoc() {
+    var t = vocToday();
+    bgGen++; // cancela vídeo que ainda estava carregando
+    if (NATIVE && document.documentElement.classList.contains("nv")) {
+      NATIVE.stop();
+      document.documentElement.classList.remove("nv");
+      [].slice.call($("bg").querySelectorAll(".nv")).forEach(function (n) { n.remove(); });
+    }
+    clearTimeout(vocHideTimer);
+    vocTimers.forEach(clearTimeout); vocTimers = [];
+    var words = t.words;
+    if (t.review) { var o = (vocTurn * 3) % words.length; words = words.slice(o, o + 3); }
+    var el = $("voc");
+    el.innerHTML = '<div class="chead"><span class="brand bb">Inglês</span><span class="cname">' +
+      (t.review ? "Revisão da semana" : "Palavras do dia") + ' <span class="mu">· nível ' + VOC_NIVEL[t.lv] + "</span></span>" +
+      '<span class="dots">' + words.map(function () { return "<i></i>"; }).join("") + "</span></div>" +
+      '<div class="wd out" id="voc-wd"></div>';
+    el.classList.remove("hidden");
+    vocOn = true;
+    vocTurn++;
+    document.body.classList.add("voc");
+    vocShowWord(words, 0, vocTurn);
+    requestAnimationFrame(function () { requestAnimationFrame(function () { el.classList.add("show"); }); });
+  }
+  function hideVoc() {
+    var el = $("voc");
+    vocOn = false;
+    vocTimers.forEach(clearTimeout); vocTimers = [];
+    el.classList.remove("show");
+    document.body.classList.remove("voc");
+    vocHideTimer = setTimeout(function () { el.classList.add("hidden"); el.innerHTML = ""; }, 1600);
+  }
+
   // ---------- manutenção do carro ----------
   // De tempos em tempos, a tela da direita mostra a saúde dos itens de manutenção do carro no lugar da foto.
   // A saúde é quanto ainda resta do intervalo de troca, em km ou em meses (o que acabar primeiro).
@@ -1571,6 +1806,7 @@
     setSpotify(data.spotify);
     setNews(data.news);
     setTrash(data.trash);
+    vocPrepare();
     if (data.spotifyDemo) { np = Object.assign({ at: Date.now() }, data.spotifyDemo); renderNowPlaying(); }
     refreshPanel();
     lastOk = Date.now();

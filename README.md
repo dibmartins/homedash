@@ -1,6 +1,6 @@
 # homedash · Painel da Família
 
-Um painel para TV com relógio, tempo, agenda e cardápio do dia, versículo e evangelho do dia, filmes em cartaz e fotos.
+Um painel para TV com relógio, tempo, agenda e cardápio do dia, versículo e evangelho do dia, filmes em cartaz, palavras em inglês e fotos.
 Cada pessoa pode ter o seu painel (`pessoa=pessoa1`, `pessoa2`...) e há um painel geral (`pessoa=familia`).
 
 ![Prévia do painel com dados de exemplo](docs/previa.png)
@@ -9,7 +9,7 @@ Cada pessoa pode ter o seu painel (`pessoa=pessoa1`, `pessoa2`...) e há um pain
 
 | Pasta | O que tem |
 |---|---|
-| `web/` | O painel (`index.html`, com `carro3d.js` para a tela de manutenção do carro). Abra no navegador para ver com dados de exemplo. Publicado no GitHub Pages a cada mudança na `main`. |
+| `web/` | O painel (`index.html`, com `carro3d.js` para a tela de manutenção do carro e `palavras.js` com a lista de palavras em inglês). Abra no navegador para ver com dados de exemplo. Publicado no GitHub Pages a cada mudança na `main`. |
 | `apps-script/` | O script do Google Apps Script (`Code.gs` + `appsscript.json`) que lê agenda, cardápio (planilha) e fotos. |
 | `android/` | App Android TV em Kotlin: um WebView em tela cheia que abre o painel ao ligar a TV. |
 | `scripts/` | `manter-painel-chromecast.sh`: mantém o painel num Chromecast sem Google TV a partir de um celular Android com Termux. |
@@ -56,7 +56,7 @@ O workflow `.github/workflows/android.yml` gera o APK a cada mudança em `androi
 3. Abra o **Painel da Família**. Na primeira vez aparece a configuração. O jeito mais fácil: no celular, copie o endereço completo do painel (o mesmo que você usa no navegador, com `pessoa`, `api`, `token` etc.), abra o app **Google TV**, toque no teclado do controle virtual e cole no primeiro campo. O app preenche o resto sozinho; é só conferir e salvar.
 4. Marque "Abrir o painel quando a TV ligar". No Android 10 ou mais novo, o app pede a permissão "Sobrepor a outros apps", necessária para abrir sozinho. Se a TV não mostrar essa tela, ative pelo computador: `adb shell appops set br.com.homedash SYSTEM_ALERT_WINDOW allow`.
 
-**No controle:** as setas para os lados trocam de perfil (família, pessoa 1, 2, 3) e a escolha fica salva. Os botões de canal (CH+ / CH−) pulam para a tela seguinte/anterior do lado direito (fotos, cinema, carro); no computador, Page Down / Page Up fazem o mesmo. Toque curto no OK recarrega o painel. Segure o OK (ou aperte MENU) para voltar à configuração.
+**No controle:** as setas para os lados trocam de perfil (família, pessoa 1, 2, 3) e a escolha fica salva. Os botões de canal (CH+ / CH−) pulam para a tela seguinte/anterior do lado direito (fotos, cinema, carro, corridas, inglês); no computador, Page Down / Page Up fazem o mesmo. Toque curto no OK recarrega o painel. Segure o OK (ou aperte MENU) para voltar à configuração.
 
 **Assinatura:** para que cada versão nova instale por cima da anterior, cadastre os segredos `HOMEDASH_KEYSTORE_BASE64`, `HOMEDASH_KEYSTORE_PASSWORD`, `HOMEDASH_KEY_ALIAS` e `HOMEDASH_KEY_PASSWORD` em **Settings > Secrets and variables > Actions**. Sem eles, o APK sai com a chave de debug.
 
@@ -172,3 +172,13 @@ Os vídeos do álbum tocam sozinhos, sem som, no fundo (no app de Android TV, pe
 - **Eventos marcados como "Particular"** no Google Agenda aparecem só como "Ocupado".
 - **Fotos do Drive:** o script só entrega fotos das pastas configuradas, nunca outros arquivos.
 - Ative a verificação em duas etapas na conta Google, se ainda não estiver ativa.
+
+## Palavras em inglês
+
+De tempos em tempos, no lugar de uma foto, aparecem 3 palavras em inglês do dia, uma de cada vez: ilustração, pronúncia, classe, significado e exemplo em inglês, e a tradução no fim. De segunda a sábado são palavras novas; no domingo, a tela revê as da semana. Não precisa alimentar nada:
+
+- as palavras vêm de `web/palavras.js` (cerca de 790, em 3 níveis); quando a lista acaba, ela recomeça;
+- significado, pronúncia e exemplo vêm do dicionário gratuito [dictionaryapi.dev](https://dictionaryapi.dev) e ficam guardados na TV;
+- a ilustração é desenhada a partir da palavra pelo serviço gratuito [pollinations.ai](https://pollinations.ai). Se ele não responder, aparece a inicial da palavra.
+
+O nível (`basico`, `intermediario` ou `avancado`) vai no perfil do script (`ingles: 'basico'`) ou na URL (`ingles=basico`). `ingles: false` no perfil, ou `ingles=0` na URL, tira a tela.
