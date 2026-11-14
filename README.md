@@ -179,6 +179,6 @@ De tempos em tempos, no lugar de uma foto, aparecem 3 palavras em inglês do dia
 
 - as palavras vêm de `web/palavras.js` (cerca de 790, em 3 níveis); quando a lista acaba, ela recomeça;
 - significado, pronúncia e exemplo vêm do dicionário gratuito [dictionaryapi.dev](https://dictionaryapi.dev) e ficam guardados na TV;
-- a ilustração vem do [Openverse](https://openverse.org), um banco gratuito de imagens livres (de preferência um desenho; senão, uma foto). Se não houver imagem, aparece a inicial da palavra.
+- a ilustração vem de bancos gratuitos de imagens livres, o [Openverse](https://openverse.org) (de preferência desenhos) e o [Wikimedia Commons](https://commons.wikimedia.org). Se nenhuma imagem carregar, aparece a inicial da palavra.
 
 O nível (`basico`, `intermediario` ou `avancado`) vai no perfil do script (`ingles: 'basico'`) ou na URL (`ingles=basico`). `ingles: false` no perfil, ou `ingles=0` na URL, tira a tela.
