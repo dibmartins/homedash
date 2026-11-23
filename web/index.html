@@ -26,6 +26,7 @@
     corridas 0 desliga a tela de corridas de rua (que aparece no lugar de uma foto, de tempos em tempos)
     ingles  nível das palavras em inglês: basico, intermediario ou avancado (o padrão vem do perfil no script,
             senão intermediario); 0 desliga a tela de palavras (que aparece no lugar de uma foto, de tempos em tempos)
+    plano   0 desliga a tela de dieta e treino (só nos perfis com plano no script; aparece no lugar de uma foto)
     carro3d 0 tira o carro 3D dessa tela (no Chromecast ele já fica desligado, para poupar memória)
   Sem "api", o painel mostra dados de exemplo.
 -->
@@ -395,6 +396,62 @@
   #carro .m .seg { height: 0.32vw; gap: 0.1vw; }
   #carro .mais { font-size: 0.72vw; margin-top: 0.6vh; }
 
+  /* ---------- dieta e treino, no lugar da foto ---------- */
+  #plano { position: fixed; left: 45vw; right: 0; top: 0; bottom: 0; z-index: 1; overflow: hidden; color: #e8ecef;
+    background: radial-gradient(ellipse at 65% -25%, #0d3527, #11151c 62%);
+    -webkit-mask-image: linear-gradient(90deg, transparent 0, #000 9%); mask-image: linear-gradient(90deg, transparent 0, #000 9%);
+    opacity: 0; transition: opacity 1.5s ease; text-shadow: none; padding: 3.4vh 2.6vw 2.4vh 5vw; display: flex; flex-direction: column; }
+  #plano.show { opacity: 1; }
+  body.has-news #plano { bottom: 6vh; }
+  .lite body.has-news #plano { bottom: 8.8vh; }
+  body.plano #verse, body.plano #bg { opacity: 0; }
+  .lite #plano { -webkit-mask-image: none; mask-image: none; transition: none; }
+  #plano > * { flex: none; }
+  #plano .rj { font-family: Rajdhani, "Arial Narrow", sans-serif; font-weight: 700; letter-spacing: 0.04em; }
+  #plano .mu { color: #93a0b0; }
+  #plano .ph { display: flex; align-items: flex-end; justify-content: space-between; gap: 1.5vw; }
+  #plano h1 { font-size: 2.1vw; line-height: 1; text-transform: uppercase; white-space: nowrap; }
+  #plano .sub { font-size: 1vw; margin-top: 0.5vh; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  #plano .sub b { color: #4fd39b; font-weight: 600; }
+  #plano .sem { text-align: right; flex: none; }
+  #plano .sem .n { font-size: 1.9vw; line-height: 1; color: #4fd39b; }
+  #plano .sem .f { font-size: 0.8vw; letter-spacing: 0.12em; text-transform: uppercase; margin-top: 0.3vh; }
+  #plano .metas { display: flex; gap: 0.6vw; margin-top: 1.8vh; }
+  #plano .mt { flex: 1 1 0; min-width: 0; padding: 0.8vh 0.8vw; border-radius: 0.45vw; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.07); }
+  #plano .mt .l { font-size: 0.68vw; letter-spacing: 0.14em; text-transform: uppercase; color: #93a0b0; white-space: nowrap; }
+  #plano .mt .v { font-size: 1.3vw; line-height: 1.15; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  #plano .cols { flex: 1 1 0; min-height: 0; display: flex; gap: 1.8vw; margin-top: 0.6vh; }
+  #plano .col { flex: 1 1 0; min-width: 0; display: flex; flex-direction: column; overflow: hidden; }
+  #plano .col.rot { flex-basis: 0; flex-grow: 1.08; }
+  #plano .tit { font-size: 0.8vw; letter-spacing: 0.2em; text-transform: uppercase; margin: 1.6vh 0 0.6vh; display: flex; align-items: center; gap: 0.6vw; color: #8b97a6; flex: none; }
+  #plano .tit:after { content: ""; flex: 1; height: 1px; background: rgba(255,255,255,0.1); }
+  #plano .it { display: flex; gap: 0.8vw; padding: 0.75vh 0.6vw; border-radius: 0.4vw; border-left: 0.25vw solid transparent; }
+  #plano .it + .it { margin-top: 0.3vh; }
+  #plano .it .h { flex: none; width: 3.6vw; font-size: 1.25vw; line-height: 1.1; color: #c6d0db; }
+  #plano .it .tx { flex: 1 1 auto; min-width: 0; }
+  #plano .it .mo { display: flex; align-items: baseline; gap: 0.5vw; font-size: 0.98vw; font-weight: 600; line-height: 1.2; }
+  #plano .it .mo .q { margin-left: auto; font-size: 0.72vw; font-weight: 400; color: #93a0b0; white-space: nowrap; }
+  #plano .it .c { font-size: 0.8vw; line-height: 1.3; color: #c3cad3; margin-top: 0.2vh; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+  #plano .it .t { font-size: 0.8vw; line-height: 1.3; color: #f2c46b; margin-top: 0.2vh; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+  #plano .it .t:before { content: "Tomar "; font-size: 0.62vw; font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase; color: #b38a3e; }
+  #plano .it.foi { opacity: 0.42; }
+  #plano .it.prox { background: rgba(79,211,155,0.11); border-left-color: #4fd39b; }
+  #plano .it.prox .h { color: #4fd39b; }
+  #plano .tag { font-size: 0.62vw; font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase; color: #0c2219; background: #4fd39b; border-radius: 0.25em; padding: 0.1em 0.45em; }
+  #plano .fase { font-size: 0.8vw; line-height: 1.35; padding: 0.7vh 0.7vw; border-radius: 0.4vw; background: rgba(79,211,155,0.08); color: #bfe9d6; }
+  #plano .aq { font-size: 0.78vw; line-height: 1.35; margin-top: 0.8vh; }
+  #plano .ex { display: flex; align-items: baseline; gap: 0.6vw; padding: 0.75vh 0; border-bottom: 1px solid rgba(255,255,255,0.06); }
+  #plano .ex .nm { flex: 1 1 auto; min-width: 0; }
+  #plano .ex .nm b { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; font-size: 0.98vw; font-weight: 600; line-height: 1.2; }
+  #plano .ex .nm span { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; font-size: 0.72vw; line-height: 1.3; margin-top: 0.15vh; }
+  #plano .ex .sr { flex: none; max-width: 11vw; font-size: 1.05vw; text-align: right; }
+  #plano .ex .sr small { display: block; font-family: "Google Sans", Roboto, sans-serif; font-weight: 400; letter-spacing: 0; font-size: 0.68vw; color: #93a0b0; }
+  #plano .ex .kg { flex: none; min-width: 3.6vw; text-align: right; font-size: 1.25vw; color: #4fd39b; white-space: nowrap; }
+  #plano .ex .kg small { font-size: 0.7vw; color: #93a0b0; margin-left: 0.1vw; }
+  #plano .dica { margin-top: 1.4vh; font-size: 0.85vw; line-height: 1.35; color: #c3cad3; padding-left: 0.8vw; border-left: 0.25vw solid rgba(242,196,107,0.6);
+    display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+  #plano .dica b { color: #f2c46b; font-weight: 600; }
+
 </style>
 </head>
 <body>
@@ -439,6 +496,7 @@
   <div id="carro" class="hidden"></div>
   <div id="corr" class="hidden"></div>
   <div id="voc" class="hidden"></div>
+  <div id="plano" class="hidden"></div>
   <div id="verse" class="hidden"><div class="vt"></div><div class="vr"></div></div>
   <div id="status"></div>
   <div id="news" class="hidden"><div class="tag">Notícias</div><div class="lane"><div id="news-track"></div></div></div>
@@ -904,10 +962,12 @@
     else if (carOn) hideCar();
     else if (corrOn) hideCorr();
     else if (vocOn) hideVoc();
+    else if (planoOn) hidePlano();
     else if (cineReady() && ++cineCount >= CINE_EVERY) { cineCount = 0; showCine(); scheduleNext(CINE_MS); return; }
     else if (carReady() && ++carCount >= CAR_EVERY) { carCount = 0; showCar(); scheduleNext(CAR_MS); return; }
     else if (corrReady() && ++corrCount >= CORR_EVERY) { corrCount = 0; showCorr(); scheduleNext(CORR_MS); return; }
     else if (vocReady() && ++vocCount >= VOC_EVERY) { vocCount = 0; showVoc(); scheduleNext(VOC_MS); return; }
+    else if (planoReady() && ++planoCount >= PLANO_EVERY) { planoCount = 0; showPlano(); scheduleNext(PLANO_MS); return; }
     showPhoto(1);
   }
   function showPhoto(step) {
@@ -918,7 +978,7 @@
     prefetchNext();
   }
   // Botões de canal do controle (CH+ / CH−, no app da TV) ou Page Up / Page Down no computador:
-  // pula para a tela seguinte/anterior na ordem fotos → cinema → carro → corridas → inglês (só as que têm dados).
+  // pula para a tela seguinte/anterior na ordem fotos → cinema → carro → corridas → inglês → dieta e treino (só as que têm dados).
   // Se só houver fotos, passa para a foto seguinte/anterior. Depois a rotação segue normalmente.
   var lastSkip = 0;
   function skipScreen(step) {
@@ -930,17 +990,20 @@
     if (carReady()) list.push("carro");
     if (corrReady()) list.push("corr");
     if (vocReady()) list.push("voc");
-    var cur = cineOn ? "cine" : carOn ? "carro" : corrOn ? "corr" : vocOn ? "voc" : "fotos";
+    if (planoReady()) list.push("plano");
+    var cur = cineOn ? "cine" : carOn ? "carro" : corrOn ? "corr" : vocOn ? "voc" : planoOn ? "plano" : "fotos";
     var i = Math.max(0, list.indexOf(cur));
     var to = list[(i + step + list.length) % list.length];
     if (cineOn) hideCine();
     if (carOn) hideCar();
     if (corrOn) hideCorr();
     if (vocOn) hideVoc();
+    if (planoOn) hidePlano();
     if (to === "cine") { cineCount = 0; showCine(); scheduleNext(CINE_MS); }
     else if (to === "carro") { carCount = 0; showCar(); scheduleNext(CAR_MS); }
     else if (to === "corr") { corrCount = 0; showCorr(); scheduleNext(CORR_MS); }
     else if (to === "voc") { vocCount = 0; showVoc(); scheduleNext(VOC_MS); }
+    else if (to === "plano") { planoCount = 0; showPlano(); scheduleNext(PLANO_MS); }
     else if (photos.length) showPhoto(cur === "fotos" ? step : 1);
   }
   window.__skipScreen = skipScreen;
@@ -1788,6 +1851,182 @@
     }, 1600);
   }
 
+  // ---------- dieta e treino ----------
+  // Só nos perfis com "plano" no script. De tempos em tempos, a tela da direita mostra a rotina do dia
+  // (refeições e o que tomar, com o próximo horário em destaque) e o treino do dia, com a carga da semana.
+  // Depois do último horário do dia, mostra a rotina de amanhã.
+  var PLANO_PARAM = (params.get("plano") || "").toLowerCase();
+  var PLANO_EVERY = 5, PLANO_MS = 45 * 1000, planoCount = 0, planoTurn = 0, planoOn = false, planoHideTimer = null;
+  var DIAS_SEMANA = ["Domingo", "Segunda", "Terça", "Quarta", "Quinta", "Sexta", "Sábado"];
+  function planoReady() {
+    var p = lastData && lastData.plano;
+    return PLANO_PARAM !== "0" && !!(p && ((p.rotina && p.rotina.length) || (p.treino && p.treino.length)));
+  }
+  function planoMin(s) { var m = /(\d{1,2})[:h](\d{2})/.exec(String(s || "")); return m ? +m[1] * 60 + +m[2] : null; }
+  function planoNorm(s) { s = String(s || "").toLowerCase().trim(); return s.normalize ? s.normalize("NFD").replace(/[̀-ͯ]/g, "") : s; }
+  function planoTreino(p, d) {
+    var rows = (p.treino || []).filter(function (r) { return weekdayIdx(r.dia) === d.getDay(); });
+    return { rows: rows, treino: rows.length > 0 && !/descanso/.test(planoNorm(rows[0].treino)) };
+  }
+  function planoRotina(p, treino) {
+    return (p.rotina || []).filter(function (r) {
+      var d = planoNorm(r.dias);
+      return d.indexOf("trein") === 0 ? treino : d.indexOf("desc") === 0 ? !treino : true;
+    });
+  }
+  function planoNum(v) { var n = parseFloat(String(v || "").replace(/[^\d,.-]/g, "").replace(/\.(?=\d{3})/g, "").replace(",", ".")); return isFinite(n) ? n : null; }
+  function planoFmt(n) { return Math.round(n).toLocaleString("pt-BR"); }
+  // semana do plano (1, 2, ...) a partir da data de início na aba Metas
+  function planoSemana(p, d) {
+    var ini = carDate((p.metas || {})["inicio"]);
+    if (!ini) return null;
+    return Math.floor((startOfDay(d) - startOfDay(ini)) / (7 * DIA_MS)) + 1;
+  }
+  function planoTotalSemanas(p) {
+    var max = 0;
+    (p.fases || []).forEach(function (f) { (String(f.semanas).match(/\d+/g) || []).forEach(function (n) { max = Math.max(max, +n); }); });
+    (p.treino || []).forEach(function (r) { max = Math.max(max, (r.cargas || []).length); });
+    return max || null;
+  }
+  function planoFase(p, sem) {
+    if (sem == null) return null;
+    return (p.fases || []).filter(function (f) {
+      var n = String(f.semanas).match(/\d+/g);
+      return n && sem >= +n[0] && sem <= +n[n.length - 1];
+    })[0] || null;
+  }
+  // carga da semana: a da coluna da semana ou, se vazia, a última preenchida antes dela
+  function planoCarga(r, sem) {
+    var c = r.cargas || [], i = Math.min(sem || 1, c.length) - 1;
+    while (i >= 0 && !c[i]) i--;
+    if (i < 0) { i = 0; while (i < c.length && !c[i]) i++; }
+    var v = c[i] ? String(c[i]).trim() : "";
+    if (!v) return "";
+    if (/^0+([,.]0+)?\s*(kg)?$/i.test(v)) return '<span class="mu" style="font-size:0.8vw">sem peso</span>';
+    if (/^\d+([,.]\d+)?\s*(kg)?$/i.test(v)) return esc(v.replace(/\s*kg$/i, "")) + "<small>kg</small>";
+    return '<span class="mu" style="font-size:0.8vw">' + esc(v) + "</span>";
+  }
+  function planoCalc(p, now) {
+    var hoje = startOfDay(now), nowMin = now.getHours() * 60 + now.getMinutes();
+    var t = planoTreino(p, hoje), rot = planoRotina(p, t.treino);
+    var ultimo = null;
+    rot.forEach(function (r) { var m = planoMin(r.hora); if (m != null) ultimo = m; });
+    var amanha = ultimo != null && nowMin > ultimo + 30;
+    var dia = hoje;
+    if (amanha) { dia = new Date(hoje); dia.setDate(dia.getDate() + 1); t = planoTreino(p, dia); rot = planoRotina(p, t.treino); }
+    // o que já passou fica apagado; o próximo horário (até 20 min depois da hora) fica em destaque
+    var prev = null, achou = false;
+    var itens = rot.map(function (r) {
+      var m = planoMin(r.hora), fim = /\d[:h]\d{2}\D+(\d{1,2}[:h]\d{2})/.exec(r.hora);
+      if (m == null) m = prev;
+      prev = m;
+      // "17:00–18:00": fica em destaque até o fim do horário
+      var ate = fim ? planoMin(fim[1]) : m != null ? m + 20 : null;
+      var st = "";
+      if (!amanha && !achou) { if (ate != null && ate < nowMin) st = "foi"; else { st = "prox"; achou = true; } }
+      else if (amanha && !achou) { st = "prox"; achou = true; }
+      return { r: r, st: st };
+    });
+    var sem = planoSemana(p, dia);
+    return { dia: dia, amanha: amanha, treino: t, itens: itens, semana: sem, total: planoTotalSemanas(p), fase: planoFase(p, sem) };
+  }
+  function planoHtml(p, c) {
+    var m = p.metas || {}, rows = c.treino.rows;
+    var nomeTreino = rows.length ? String(rows[0].treino || "") : "";
+    if (c.treino.treino && nomeTreino && !/^treino/i.test(nomeTreino)) nomeTreino = "Treino " + nomeTreino;
+    var sub = (c.amanha ? "<b>Amanhã</b> · " : "") + DIAS_SEMANA[c.dia.getDay()] + " · " +
+      (c.treino.treino ? "Dia de treino" + (nomeTreino ? " · " + esc(nomeTreino) : "") : "Dia de descanso");
+    var h = '<div class="ph"><div style="min-width:0"><h1 class="rj">Dieta e treino</h1><div class="sub mu">' + sub + "</div></div>";
+    if (c.semana != null && c.semana >= 1) {
+      h += '<div class="sem"><div class="n rj">Semana ' + c.semana + (c.total ? '<span class="mu" style="font-size:1.2vw"> de ' + c.total + "</span>" : "") + "</div>" +
+        (c.fase ? '<div class="f mu">' + esc(c.fase.fase) + "</div>" : "") + "</div>";
+    } else if (c.semana != null) {
+      h += '<div class="sem"><div class="f mu">Treino começa em ' + esc(fmtDate(carDate(m["inicio"]))) + "</div></div>";
+    }
+    h += "</div>";
+    // metas do dia; sem elas na planilha, a soma da rotina
+    var kcal = 0, prot = 0;
+    c.itens.forEach(function (x) { kcal += planoNum(x.r.kcal) || 0; prot += planoNum(x.r.proteina) || 0; });
+    var cal = (c.treino.treino ? m["calorias no treino"] : m["calorias no descanso"]) || m["calorias"] || (kcal ? "≈ " + planoFmt(kcal) + " kcal" : "");
+    var pro = m["proteina"] || (prot ? "≈ " + planoFmt(prot) + " g" : "");
+    var metas = [["Calorias", cal], ["Proteína", pro], ["Água", m["agua"]]];
+    metas = metas.filter(function (x) { return x[1]; });
+    if (metas.length) h += '<div class="metas">' + metas.map(function (x) {
+      return '<div class="mt"><div class="l">' + esc(x[0]) + '</div><div class="v rj">' + esc(x[1]) + "</div></div>";
+    }).join("") + "</div>";
+    h += '<div class="cols">';
+    if (c.itens.length) {
+      h += '<div class="col rot"><div class="tit">' + (c.amanha ? "Rotina de amanhã" : "Rotina de hoje") + "</div>" + c.itens.map(function (x) {
+        var r = x.r, q = [r.kcal ? r.kcal.replace(/\s*kcal$/i, "") + " kcal" : "", r.proteina ? r.proteina.replace(/\s*g$/i, "") + " g prot." : ""].filter(Boolean).join(" · ");
+        return '<div class="it ' + x.st + '"><div class="h rj">' + esc((r.hora.match(/\d{1,2}[:h]\d{2}/) || [r.hora])[0]) + '</div><div class="tx"><div class="mo">' + esc(r.momento) +
+          (x.st === "prox" && !c.amanha ? '<span class="tag">próximo</span>' : "") + (q ? '<span class="q">' + esc(q) + "</span>" : "") + "</div>" +
+          (r.comer ? '<div class="c">' + esc(r.comer) + "</div>" : "") + (r.tomar && r.tomar !== "—" && r.tomar !== "-" ? '<div class="t">' + esc(r.tomar) + "</div>" : "") + "</div></div>";
+      }).join("") + "</div>";
+    }
+    if (rows.length) {
+      h += '<div class="col"><div class="tit">' + esc(c.treino.treino ? (nomeTreino || "Treino") : (nomeTreino || "Descanso")) + "</div>";
+      if (c.treino.treino && c.fase && (c.fase.series || c.fase.como)) h += '<div class="fase"><b>' + esc(c.fase.fase) + "</b>" + (c.fase.series ? " · " + esc(/^\d+$/.test(c.fase.series) ? c.fase.series + " séries por exercício" : c.fase.series) : "") + (c.fase.como ? ". " + esc(c.fase.como) : "") + "</div>";
+      if (c.treino.treino && m["aquecimento"]) h += '<div class="aq mu"><b style="color:#c6d0db">Aquecimento:</b> ' + esc(m["aquecimento"]) + "</div>";
+      var nSeries = c.fase && /^\d+$/.test(String(c.fase.series || "").trim()) ? String(c.fase.series).trim() : null;
+      h += rows.map(function (r) {
+        var sr = String(r.series || "");
+        if (c.treino.treino && nSeries) sr = sr.replace(/^\s*\d+(?=\s*[×x])/, nSeries);
+        // "3 × 10–12 cada lado": o complemento fica embaixo, menor
+        var sm = /^(\d+\s*[×x]\s*[\d–\-]+(?:\s*(?:s|min))?)\s+(\D.{2,})$/.exec(sr), srHtml = sm ? esc(sm[1]) + "<small>" + esc(sm[2]) + "</small>" : esc(sr);
+        var det = [r.descanso ? "descanso " + r.descanso : "", r.dica].filter(Boolean).join(" · ");
+        return '<div class="ex"><div class="nm"><b>' + esc(r.nome) + "</b>" + (det ? '<span class="mu">' + esc(det) + "</span>" : "") + "</div>" +
+          '<div class="sr rj">' + srHtml + "</div>" + (c.treino.treino ? '<div class="kg rj">' + planoCarga(r, c.semana) + "</div>" : "") + "</div>";
+      }).join("") + "</div>";
+    }
+    h += "</div>";
+    var dicas = p.dicas || [];
+    if (dicas.length) h += '<div class="dica"><b>Dica:</b> ' + esc(dicas[planoTurn % dicas.length]) + "</div>";
+    return h;
+  }
+  // se uma coluna passar da área (ex.: com a barra de notícias), encurta aos poucos: primeiro os detalhes
+  // ficam com uma linha, depois saem o aquecimento, os detalhes do que já passou e as dicas dos exercícios
+  function fitPlano(el) {
+    [].forEach.call(el.querySelectorAll(".col"), function (col) {
+      function over() { return col.scrollHeight > col.clientHeight + 1; }
+      function set(sel, prop, v) { [].forEach.call(col.querySelectorAll(sel), function (n) { n.style[prop] = v; }); }
+      var steps = [
+        function () { set(".ex .nm span", "webkitLineClamp", "1"); },
+        function () { set(".aq", "display", "none"); },
+        function () { set(".it.foi .c, .it.foi .t", "webkitLineClamp", "1"); },
+        function () { set(".it .c, .it .t", "webkitLineClamp", "1"); },
+        function () { set(".it.foi .c", "display", "none"); set(".ex .nm span", "display", "none"); },
+        function () { set(".fase", "display", "none"); }
+      ];
+      for (var k = 0; k < steps.length && over(); k++) steps[k]();
+    });
+  }
+  function showPlano() {
+    var p = lastData.plano, el = $("plano");
+    bgGen++; // cancela vídeo que ainda estava carregando
+    if (NATIVE && document.documentElement.classList.contains("nv")) {
+      NATIVE.stop();
+      document.documentElement.classList.remove("nv");
+      [].slice.call($("bg").querySelectorAll(".nv")).forEach(function (n) { n.remove(); });
+    }
+    clearTimeout(planoHideTimer);
+    el.innerHTML = planoHtml(p, planoCalc(p, new Date()));
+    el.classList.remove("hidden");
+    fitPlano(el);
+    if (document.fonts && document.fonts.ready) document.fonts.ready.then(function () { if (planoOn) fitPlano(el); });
+    planoOn = true;
+    planoTurn++;
+    document.body.classList.add("plano");
+    requestAnimationFrame(function () { requestAnimationFrame(function () { el.classList.add("show"); }); });
+  }
+  function hidePlano() {
+    var el = $("plano");
+    planoOn = false;
+    el.classList.remove("show");
+    document.body.classList.remove("plano");
+    planoHideTimer = setTimeout(function () { el.classList.add("hidden"); el.innerHTML = ""; }, 1600);
+  }
+
+
   // ---------- dados ----------
   function apiUrl(extra) {
     var q = new URLSearchParams({ token: CONFIG.token, pessoa: CONFIG.pessoa, days: CONFIG.days, _: Date.now() });
@@ -1916,6 +2155,36 @@
           [9, "Cidade Vizinha", "Corrida das Flores", ["6"]], [9, "Serra", "Trail Run", ["25", "16", "8"]], [9, "Capital", "Meia da Cidade", ["21", "10", "5"]],
           [23, "Cidade Vizinha", "Corrida de Natal", ["5"]]
         ].map(function (r, i) { return { d: dayStr(r[0]), city: r[1], name: r[2], km: r[3], id: String(i) }; })
+      },
+      plano: {
+        metas: { inicio: dayStr(-8), "calorias no treino": "≈ 2.400 kcal", "calorias no descanso": "≈ 2.200 kcal", proteina: "140 g", agua: "2,5 L",
+          aquecimento: "5 min de bicicleta leve, mobilidade e 1 série leve do primeiro exercício." },
+        dicas: ["Exemplo · preencha as abas Metas, Rotina, Treino e Fases da planilha.", "Beba água ao longo do dia, não só nas refeições."],
+        rotina: [
+          { hora: "07:00", momento: "Café da manhã", dias: "todos", comer: "2 ovos mexidos + 2 fatias de pão integral + 1 fruta", tomar: "Multivitamínico 1 cp", kcal: "450", proteina: "22" },
+          { hora: "12:30", momento: "Almoço", dias: "todos", comer: "Arroz, feijão, frango grelhado e salada à vontade", tomar: "", kcal: "700", proteina: "45" },
+          { hora: "16:00", momento: "Lanche", dias: "descanso", comer: "Iogurte natural + 1 banana + aveia", tomar: "", kcal: "300", proteina: "15" },
+          { hora: "18:00", momento: "Treino", dias: "treino", comer: "", tomar: "Água", kcal: "", proteina: "" },
+          { hora: "19:15", momento: "Pós-treino", dias: "treino", comer: "Iogurte natural + 1 banana + aveia + 1 batata-doce", tomar: "Creatina 1 dose", kcal: "500", proteina: "20" },
+          { hora: "20:30", momento: "Jantar", dias: "todos", comer: "Arroz, feijão, carne moída e legumes", tomar: "", kcal: "650", proteina: "40" },
+          { hora: "22:00", momento: "Ceia", dias: "todos", comer: "1 copo de leite", tomar: "", kcal: "120", proteina: "8" }
+        ],
+        treino: [1, 3, 5].reduce(function (a, d, k) {
+          var n = ["segunda", "quarta", "sexta"][k], t = ["A", "B", "C"][k];
+          return a.concat([
+            { dia: n, treino: t, nome: "Agachamento com halter", series: "3 × 8–12", descanso: "90 s", dica: "Joelhos na direção dos pés", cargas: ["8", "8", "9", "10"] },
+            { dia: n, treino: t, nome: "Supino com halteres", series: "3 × 8–12", descanso: "90 s", dica: "Desce até a altura do peito", cargas: ["6", "6", "7", "8"] },
+            { dia: n, treino: t, nome: "Remada unilateral", series: "3 × 10–12", descanso: "60 s", dica: "Puxa em direção ao quadril", cargas: ["8", "8", "9", "10"] },
+            { dia: n, treino: t, nome: "Desenvolvimento sentado", series: "3 × 8–12", descanso: "90 s", dica: "Sem arquear a lombar", cargas: ["4", "4", "5", "5"] },
+            { dia: n, treino: t, nome: "Prancha", series: "3 × 30 s", descanso: "45 s", dica: "Corpo reto", cargas: ["peso do corpo"] }
+          ]);
+        }, []).concat([2, 4, 6, 0].map(function (d) {
+          return { dia: DIAS_SEMANA[d], treino: "Descanso ativo", nome: "Caminhada", series: "30–45 min", descanso: "", dica: "Ritmo leve", cargas: [] };
+        })),
+        fases: [
+          { semanas: "1–2", fase: "Adaptação", series: "2", como: "Use as cargas iniciais e foque em aprender o movimento." },
+          { semanas: "3–4", fase: "Base", series: "3", como: "Tente 1 repetição a mais a cada treino." }
+        ]
       },
       demo: true
     };
