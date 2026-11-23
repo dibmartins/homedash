@@ -29,6 +29,9 @@ const SHEET_ID = '';
 //           hora da coleta (mude com ate: '08:30'). Sem "lixo", o lembrete não aparece.
 //  ingles:  nível da tela de palavras em inglês: 'basico', 'intermediario' (padrão) ou 'avancado'.
 //           ingles: false tira essa tela do perfil. As palavras e os significados vêm sozinhos, sem planilha.
+//  plano:   tela "Dieta e treino" com as abas Metas, Rotina, Treino e Fases da planilha (veja getPlano_).
+//           plano: true usa as abas com esses nomes; plano: 'Ana' usa "Metas Ana", "Rotina Ana"...
+//           Sem "plano", a tela não aparece nesse perfil.
 // Troque as chaves e os nomes pelos da sua casa na SUA cópia do script (não no repositório).
 const PROFILES = {
   familia: {
@@ -118,7 +121,7 @@ function doGet(e) {
   const safe = (label, fn, fallback) => {
     try { return fn(); } catch (err) { warnings.push(label + ': ' + err.message); return fallback; }
   };
-  const sheet = SHEET_ID && (profile.menu || profile.carro !== false) ? safe('planilha', () => SpreadsheetApp.openById(SHEET_ID), null) : null;
+  const sheet = SHEET_ID && (profile.menu || profile.carro !== false || profile.plano) ? safe('planilha', () => SpreadsheetApp.openById(SHEET_ID), null) : null;
   const body = JSON.stringify({
     name: profile.name,
     events: safe('agenda', () => getEvents_(profile, days), []),
@@ -132,6 +135,7 @@ function doGet(e) {
     corridas: CORRIDAS.uf && profile.corridas !== false ? safe('corridas', getCorridas_, null) : null,
     carro: sheet && profile.carro !== false ? safe('carro', () => getCar_(sheet), null) : null,
     ingles: profile.ingles === undefined ? null : profile.ingles,
+    plano: sheet && profile.plano ? safe('plano', () => getPlano_(sheet, profile.plano), null) : null,
     warnings: warnings,
     updated: new Date().toISOString(),
   });
@@ -885,6 +889,58 @@ function testeCarro() {
   Logger.log('Planilha: ' + sheet.getName() + ' · abas: ' + sheet.getSheets().map(t => t.getName()).join(', '));
   const car = getCar_(sheet);
   Logger.log(car ? JSON.stringify(car, null, 2) : 'Não achei a aba "Manutenção" nesta planilha.');
+}
+
+// ---------------- Dieta e treino ----------------
+// A tela "Dieta e treino" entra no lugar de uma foto, de tempos em tempos, só nos perfis com plano.
+// Ela mostra a rotina do dia (refeições e o que tomar, destacando o próximo horário) e o treino do dia.
+// Abas (o nome pode ter um sufixo, ex.: "Rotina Ana", quando o perfil tem plano: 'Ana'):
+//   Metas:  duas colunas, Campo | Valor. Campos lidos (todos opcionais):
+//           Início (data da 1ª semana do treino), Calorias no treino, Calorias no descanso, Proteína, Água,
+//           Aquecimento. "Dica" pode se repetir: uma dica aparece por vez, no rodapé da tela.
+//   Rotina: Horário | Momento | Dias | Comer | Tomar | kcal | Proteína
+//           Dias: "todos", "treino" (só nos dias com treino) ou "descanso" (só nos outros dias).
+//   Treino: Dia | Treino | Exercício | Séries × reps | Descanso | Dica | S1 | S2 | ... (carga de cada semana)
+//           Dia: segunda, terça... Uma linha por exercício. Sem carga na semana, vale a última preenchida.
+//           Treino com a palavra "descanso" (ex.: "Descanso ativo", com caminhada) ou dia sem linhas
+//           é dia de descanso para a aba Rotina.
+//   Fases:  Semanas (ex.: 1–2) | Fase | Séries | Como fazer. Séries com só um número troca as séries do treino.
+// Os valores são lidos como aparecem na planilha (texto), então "07:30" e "23/11/2026" chegam como estão.
+function getPlano_(sheet, nome) {
+  const suf = typeof nome === 'string' && nome.trim() ? ' ' + nome.trim() : '';
+  const linhas = (aba, cols) => {
+    const t = tab_(sheet, aba + suf);
+    if (!t || t.getLastRow() < 2) return [];
+    return t.getRange(2, 1, t.getLastRow() - 1, Math.max(t.getLastColumn(), cols)).getDisplayValues()
+      .map(r => r.map(v => String(v).trim())).filter(r => r[0] || r[1] || r[2]);
+  };
+  if (!tab_(sheet, 'Rotina' + suf) && !tab_(sheet, 'Treino' + suf)) return null;
+  const norm = s => String(s || '').trim().toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+  const metas = {}, dicas = [];
+  linhas('Metas', 2).forEach(r => {
+    if (norm(r[0]) === 'dica') { if (r[1]) dicas.push(r[1]); } else if (r[0]) metas[norm(r[0])] = r[1];
+  });
+  const t = tab_(sheet, 'Treino' + suf);
+  const cab = t && t.getLastColumn() >= 7 ? t.getRange(1, 7, 1, t.getLastColumn() - 6).getDisplayValues()[0].map(String) : [];
+  return {
+    metas: metas,
+    dicas: dicas,
+    rotina: linhas('Rotina', 7).map(r => ({ hora: r[0], momento: r[1], dias: norm(r[2]) || 'todos', comer: r[3], tomar: r[4], kcal: r[5], proteina: r[6] })),
+    treino: linhas('Treino', 6).map(r => ({ dia: r[0], treino: r[1], nome: r[2], series: r[3], descanso: r[4], dica: r[5],
+      cargas: r.slice(6, 6 + cab.length) })),
+    fases: linhas('Fases', 4).map(r => ({ semanas: r[0], fase: r[1], series: r[2], como: r[3] })),
+  };
+}
+
+/** Rode no editor para conferir o que a tela "Dieta e treino" vai mostrar em cada perfil com plano. */
+function testePlano() {
+  if (!SHEET_ID) { Logger.log('defina SHEET_ID'); return; }
+  const sheet = SpreadsheetApp.openById(SHEET_ID);
+  Logger.log('abas: ' + sheet.getSheets().map(t => t.getName()).join(', '));
+  Object.keys(PROFILES).filter(k => PROFILES[k].plano).forEach(k => {
+    const p = getPlano_(sheet, PROFILES[k].plano);
+    Logger.log(k + ': ' + (p ? JSON.stringify(p, null, 2) : 'não achei as abas Rotina/Treino'));
+  });
 }
 
 // ---------------- utilitários ----------------

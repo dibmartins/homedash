@@ -56,7 +56,7 @@ O workflow `.github/workflows/android.yml` gera o APK a cada mudança em `androi
 3. Abra o **Painel da Família**. Na primeira vez aparece a configuração. O jeito mais fácil: no celular, copie o endereço completo do painel (o mesmo que você usa no navegador, com `pessoa`, `api`, `token` etc.), abra o app **Google TV**, toque no teclado do controle virtual e cole no primeiro campo. O app preenche o resto sozinho; é só conferir e salvar.
 4. Marque "Abrir o painel quando a TV ligar". No Android 10 ou mais novo, o app pede a permissão "Sobrepor a outros apps", necessária para abrir sozinho. Se a TV não mostrar essa tela, ative pelo computador: `adb shell appops set br.com.homedash SYSTEM_ALERT_WINDOW allow`.
 
-**No controle:** as setas para os lados trocam de perfil (família, pessoa 1, 2, 3) e a escolha fica salva. Os botões de canal (CH+ / CH−) pulam para a tela seguinte/anterior do lado direito (fotos, cinema, carro, corridas, inglês); no computador, Page Down / Page Up fazem o mesmo. Toque curto no OK recarrega o painel. Segure o OK (ou aperte MENU) para voltar à configuração.
+**No controle:** as setas para os lados trocam de perfil (família, pessoa 1, 2, 3) e a escolha fica salva. Os botões de canal (CH+ / CH−) pulam para a tela seguinte/anterior do lado direito (fotos, cinema, carro, corridas, inglês, dieta e treino); no computador, Page Down / Page Up fazem o mesmo. Toque curto no OK recarrega o painel. Segure o OK (ou aperte MENU) para voltar à configuração.
 
 **Assinatura:** para que cada versão nova instale por cima da anterior, cadastre os segredos `HOMEDASH_KEYSTORE_BASE64`, `HOMEDASH_KEYSTORE_PASSWORD`, `HOMEDASH_KEY_ALIAS` e `HOMEDASH_KEY_PASSWORD` em **Settings > Secrets and variables > Actions**. Sem eles, o APK sai com a chave de debug.
 
@@ -182,3 +182,18 @@ De tempos em tempos, no lugar de uma foto, aparecem 3 palavras em inglês do dia
 - a ilustração vem do [Openverse](https://openverse.org), um banco gratuito de imagens livres (de preferência um desenho; senão, uma foto). Se não houver imagem, aparece a inicial da palavra.
 
 O nível (`basico`, `intermediario` ou `avancado`) vai no perfil do script (`ingles: 'basico'`) ou na URL (`ingles=basico`). `ingles: false` no perfil, ou `ingles=0` na URL, tira a tela.
+
+## Dieta e treino (opcional)
+
+Num perfil com `plano` no script, de tempos em tempos (a cada 5 fotos, por 45 segundos) a tela da direita mostra o plano do dia: metas (calorias, proteína, água), a rotina com as refeições e o que tomar em cada horário (o que já passou fica apagado e o próximo horário em destaque) e o treino do dia, com a carga da semana. Depois do último horário do dia, aparece a rotina de amanhã. Os dados ficam só na planilha, nunca no repositório.
+
+`plano: true` usa as abas abaixo; `plano: 'Ana'` usa as mesmas abas com o nome no fim (`Metas Ana`, `Rotina Ana`...), para ter um plano por pessoa.
+
+| Aba | Colunas |
+|---|---|
+| Metas | Campo · Valor. Campos: Início (data da semana 1 do treino), Calorias no treino, Calorias no descanso, Proteína, Água, Aquecimento. `Dica` pode se repetir: aparece uma por vez no rodapé da tela |
+| Rotina | Horário · Momento · Dias (`todos`, `treino` ou `descanso`) · Comer · Tomar · kcal · Proteína |
+| Treino | Dia (segunda, terça...) · Treino (ex.: A) · Exercício · Séries × reps · Descanso · Dica · S1, S2... (carga de cada semana; vazia = vale a anterior) |
+| Fases | Semanas (ex.: 1–2) · Fase · Séries · Como fazer |
+
+Um dia é de descanso quando a coluna Treino tem a palavra "descanso" (ex.: "Descanso ativo", com caminhada) ou quando não tem linhas na aba Treino. Se a coluna Séries da fase for só um número, ele troca as séries dos exercícios naquela fase. Para desligar numa TV, use `?plano=0`. Para conferir os dados, execute `testePlano` no editor do Apps Script.
